@@ -49,8 +49,6 @@ Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/bui
 
 ## 2. ターゲットユーザー
 -   自然観察が趣味の人
--   子供の自由研究や学習記録として利用する親子
--   地域の生物多様性を調査・記録する研究者や学生
 
 ## 3. 機能要件
 
