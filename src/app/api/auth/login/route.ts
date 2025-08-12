@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { compare } from 'bcryptjs';
 import { PrismaClient } from '@prisma/client';
+import { sign } from 'jsonwebtoken';
 
 const prisma = new PrismaClient();
 
@@ -24,7 +25,25 @@ export async function POST(request: Request) {
       return NextResponse.json({ message: 'Invalid credentials' }, { status: 401 });
     }
 
-    return NextResponse.json({ message: 'Login successful', user: { id: user.id, username: user.username, email: user.email } }, { status: 200 });
+    // Generate JWT
+    const jwtSecret = process.env.JWT_SECRET;
+    if (!jwtSecret) {
+      throw new Error('JWT_SECRET is not defined in environment variables');
+    }
+    const token = sign({ userId: user.id }, jwtSecret, { expiresIn: '1h' });
+
+    const response = NextResponse.json({ message: 'Login successful', user: { id: user.id, username: user.username, email: user.email } }, { status: 200 });
+
+    // Set HTTP-only cookie
+    response.cookies.set('auth_token', token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production', // Use secure in production
+      sameSite: 'strict',
+      maxAge: 60 * 60, // 1 hour
+      path: '/',
+    });
+
+    return response;
   } catch (error) {
     console.error('Login error:', error);
     return NextResponse.json({ message: 'Something went wrong' }, { status: 500 });
