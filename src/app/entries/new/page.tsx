@@ -1,19 +1,76 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { MapContainer, TileLayer, Marker, useMapEvents } from 'react-leaflet';
+import L from 'leaflet';
+
+// Component to handle map clicks and update coordinates
+function MapClickHandler({ setLatitude, setLongitude }: { setLatitude: (lat: string) => void; setLongitude: (lng: string) => void }) {
+  useMapEvents({
+    click: (e) => {
+      setLatitude(e.latlng.lat.toString());
+      setLongitude(e.latlng.lng.toString());
+    },
+  });
+  return null;
+}
 
 export default function NewEntryPage() {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
-  const [imageUrl, setImageUrl] = useState('');
+  const [imageFile, setImageFile] = useState<File | null>(null); // Changed from imageUrl to imageFile
   const [latitude, setLatitude] = useState('');
   const [longitude, setLongitude] = useState('');
   const [takenAt, setTakenAt] = useState('');
   const [isPublic, setIsPublic] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [userLocation, setUserLocation] = useState<[number, number] | null>(null); // Added for map
+  const [isClient, setIsClient] = useState(false); // Added for map
   const router = useRouter();
+
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
+
+  // Fetch user location for map
+  useEffect(() => {
+    if (isClient && navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          setUserLocation([position.coords.latitude, position.coords.longitude]);
+          setLatitude(position.coords.latitude.toString()); // Set initial latitude
+          setLongitude(position.coords.longitude.toString()); // Set initial longitude
+        },
+        (err) => {
+          console.error('Geolocation error:', err);
+          setError('現在地を取得できませんでした。デフォルトの位置を表示します。');
+          setUserLocation([35.6895, 139.6917]); // Default to Tokyo
+          setLatitude('35.6895');
+          setLongitude('139.6917');
+        },
+        { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 }
+      );
+    } else if (isClient) {
+      setError('お使いのブラウザは位置情報に対応していません。デフォルトの位置を表示します。');
+      setUserLocation([35.6895, 139.6917]); // Default to Tokyo
+      setLatitude('35.6895');
+      setLongitude('139.6917');
+    }
+  }, [isClient]);
+
+  // Fix for default marker icon issue with Webpack - runs only on client
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      delete L.Icon.Default.prototype._getIconUrl;
+      L.Icon.Default.mergeOptions({
+        iconRetinaUrl: 'https://unpkg.com/leaflet@1.7.1/dist/images/marker-icon-2x.png',
+        iconUrl: 'https://unpkg.com/leaflet@1.7.1/dist/images/marker-icon.png',
+        shadowUrl: 'https://unpkg.com/leaflet@1.7.1/dist/images/marker-shadow.png',
+      });
+    }
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -25,21 +82,22 @@ export default function NewEntryPage() {
       return;
     }
 
+    const formData = new FormData();
+    formData.append('title', title);
+    formData.append('description', description);
+    if (imageFile) {
+      formData.append('image', imageFile);
+    }
+    formData.append('latitude', latitude);
+    formData.append('longitude', longitude);
+    formData.append('takenAt', takenAt);
+    formData.append('isPublic', isPublic.toString());
+
     try {
       const response = await fetch('/api/entries', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          title,
-          description,
-          imageUrl,
-          latitude: parseFloat(latitude),
-          longitude: parseFloat(longitude),
-          takenAt,
-          isPublic,
-        }),
+        // headers: { 'Content-Type': 'multipart/form-data' } // FormData handles this automatically
+        body: formData,
       });
 
       const data = await response.json();
@@ -49,7 +107,7 @@ export default function NewEntryPage() {
         // Optionally clear form or redirect
         setTitle('');
         setDescription('');
-        setImageUrl('');
+        setImageFile(null); // Clear image file
         setLatitude('');
         setLongitude('');
         setTakenAt('');
@@ -63,6 +121,10 @@ export default function NewEntryPage() {
       setError('予期せぬエラーが発生しました。もう一度お試しください。');
     }
   };
+
+  if (!isClient || userLocation === null) {
+    return <div className="min-h-screen flex items-center justify-center">地図を読み込み中...</div>;
+  }
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-100 p-4">
@@ -93,13 +155,13 @@ export default function NewEntryPage() {
             ></textarea>
           </div>
           <div>
-            <label htmlFor="imageUrl" className="block text-sm font-medium text-gray-700">画像URL</label>
+            <label htmlFor="image" className="block text-sm font-medium text-gray-700">画像</label>
             <input
-              type="url"
-              id="imageUrl"
-              className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm text-gray-900"
-              value={imageUrl}
-              onChange={(e) => setImageUrl(e.target.value)}
+              type="file"
+              id="image"
+              accept="image/*"
+              className="mt-1 block w-full text-sm text-gray-900 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100"
+              onChange={(e) => setImageFile(e.target.files ? e.target.files[0] : null)}
             />
           </div>
           <div className="grid grid-cols-2 gap-4">
@@ -128,6 +190,20 @@ export default function NewEntryPage() {
               />
             </div>
           </div>
+          {userLocation && (
+            <div style={{ height: '300px', width: '100%' }}>
+              <MapContainer center={userLocation} zoom={13} scrollWheelZoom={true} style={{ height: '100%', width: '100%' }}>
+                <TileLayer
+                  attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                  url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                />
+                {latitude && longitude && (
+                  <Marker position={[parseFloat(latitude), parseFloat(longitude)]}></Marker>
+                )}
+                <MapClickHandler setLatitude={setLatitude} setLongitude={setLongitude} />
+              </MapContainer>
+            </div>
+          )}
           <div>
             <label htmlFor="takenAt" className="block text-sm font-medium text-gray-700">発見日時 (必須)</label>
             <input
