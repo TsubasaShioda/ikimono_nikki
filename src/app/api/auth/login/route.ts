@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { compare } from 'bcryptjs';
 import { PrismaClient } from '@prisma/client';
-import { sign } from 'jsonwebtoken';
+import { SignJWT } from 'jose';
 
 const prisma = new PrismaClient();
 
@@ -30,7 +30,7 @@ export async function POST(request: Request) {
     if (!jwtSecret) {
       throw new Error('JWT_SECRET is not defined in environment variables');
     }
-    const token = sign({ userId: user.id }, jwtSecret, { expiresIn: '1h' });
+    const token = await new SignJWT({ userId: user.id }).setProtectedHeader({ alg: 'HS256' }).setExpirationTime('1h').sign(new TextEncoder().encode(jwtSecret));
 
     const response = NextResponse.json({ message: 'Login successful', user: { id: user.id, username: user.username, email: user.email } }, { status: 200 });
 

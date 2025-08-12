@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
-import { verify } from 'jsonwebtoken';
+import { jwtVerify } from 'jose';
 
 export async function middleware(request: NextRequest) {
   const token = request.cookies.get('auth_token')?.value;
@@ -18,7 +18,7 @@ export async function middleware(request: NextRequest) {
 
   try {
     // Verify token
-    verify(token, jwtSecret);
+    await jwtVerify(token, new TextEncoder().encode(jwtSecret));
     return NextResponse.next();
   } catch (error) {
     // Redirect to login if token is invalid
