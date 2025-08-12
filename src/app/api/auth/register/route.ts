@@ -14,7 +14,7 @@ export async function POST(request: Request) {
     });
 
     if (existingUser) {
-      return NextResponse.json({ message: 'User with this email already exists' }, { status: 409 });
+      return NextResponse.json({ message: 'このメールアドレスはすでに登録されています' }, { status: 409 });
     }
 
     const hashedPassword = await hash(password, 10); // 10 is the salt rounds
@@ -27,9 +27,9 @@ export async function POST(request: Request) {
       },
     });
 
-    return NextResponse.json({ message: 'User registered successfully', user: { id: user.id, username: user.username, email: user.email } }, { status: 201 });
+    return NextResponse.json({ message: '登録が完了しました', user: { id: user.id, username: user.username, email: user.email } }, { status: 201 });
   } catch (error) {
     console.error('Registration error:', error);
-    return NextResponse.json({ message: 'Something went wrong' }, { status: 500 });
+    return NextResponse.json({ message: '予期せぬエラーが発生しました' }, { status: 500 });
   }
 }

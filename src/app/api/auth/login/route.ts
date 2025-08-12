@@ -15,14 +15,14 @@ export async function POST(request: Request) {
     });
 
     if (!user) {
-      return NextResponse.json({ message: 'Invalid credentials' }, { status: 401 });
+      return NextResponse.json({ message: 'メールアドレスまたはパスワードが正しくありません' }, { status: 401 });
     }
 
     // Compare passwords
     const isPasswordValid = await compare(password, user.password_hash);
 
     if (!isPasswordValid) {
-      return NextResponse.json({ message: 'Invalid credentials' }, { status: 401 });
+      return NextResponse.json({ message: 'メールアドレスまたはパスワードが正しくありません' }, { status: 401 });
     }
 
     // Generate JWT
@@ -32,7 +32,7 @@ export async function POST(request: Request) {
     }
     const token = await new SignJWT({ userId: user.id }).setProtectedHeader({ alg: 'HS256' }).setExpirationTime('1h').sign(new TextEncoder().encode(jwtSecret));
 
-    const response = NextResponse.json({ message: 'Login successful', user: { id: user.id, username: user.username, email: user.email } }, { status: 200 });
+    const response = NextResponse.json({ message: 'ログイン成功', user: { id: user.id, username: user.username, email: user.email } }, { status: 200 });
 
     // Set HTTP-only cookie
     response.cookies.set('auth_token', token, {
@@ -46,6 +46,6 @@ export async function POST(request: Request) {
     return response;
   } catch (error) {
     console.error('Login error:', error);
-    return NextResponse.json({ message: 'Something went wrong' }, { status: 500 });
+    return NextResponse.json({ message: '予期せぬエラーが発生しました' }, { status: 500 });
   }
 }
