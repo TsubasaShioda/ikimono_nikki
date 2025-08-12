@@ -48,7 +48,7 @@ export default function RegisterPage() {
 
   return (
     <div className="p-4">
-      <h2 className="text-2xl font-bold mb-6 text-center">Register</h2>
+      <h2 className="text-2xl font-bold mb-6 text-center text-gray-900">Register</h2>
       {error && <p className="text-red-500 text-center mb-4">{error}</p>}
       {success && <p className="text-green-500 text-center mb-4">{success}</p>}
       <form onSubmit={handleSubmit} className="space-y-4">
@@ -57,7 +57,7 @@ export default function RegisterPage() {
           <input
             type="text"
             id="username"
-            className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+            className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm text-gray-900"
             value={username}
             onChange={(e) => setUsername(e.target.value)}
             required
@@ -68,7 +68,7 @@ export default function RegisterPage() {
           <input
             type="email"
             id="email"
-            className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+            className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm text-gray-900"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             required
@@ -79,7 +79,7 @@ export default function RegisterPage() {
           <input
             type="password"
             id="password"
-            className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+            className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm text-gray-900"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             required
