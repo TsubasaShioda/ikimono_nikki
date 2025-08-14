@@ -26,7 +26,12 @@ export async function GET(request: Request) {
     if (userId) {
       // Fetch all entries for the authenticated user
       entries = await prisma.diaryEntry.findMany({
-        where: { userId: userId },
+        where: {
+          OR: [
+            { isPublic: true },
+            { userId: userId },
+          ],
+        },
         orderBy: { createdAt: 'desc' },
       });
     } else {

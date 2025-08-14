@@ -28,6 +28,35 @@ async function getUserIdFromToken(request: Request): Promise<string | null> {
   }
 }
 
+// GET method to fetch a single diary entry by ID
+export async function GET(request: Request, { params }: { params: Params }) {
+  try {
+    const { id } = params;
+
+    const entry = await prisma.diaryEntry.findUnique({
+      where: { id },
+    });
+
+    if (!entry) {
+      return NextResponse.json({ message: '日記が見つかりません' }, { status: 404 });
+    }
+
+    // Optionally, you might want to check if the user has permission to view this entry
+    // For now, we'll allow viewing if it's public or if the user is the owner.
+    // This requires fetching the current user's ID.
+    const userId = await getUserIdFromToken(request);
+    if (!entry.isPublic && entry.userId !== userId) {
+      return NextResponse.json({ message: 'この日記を閲覧する権限がありません' }, { status: 403 });
+    }
+
+    return NextResponse.json({ entry }, { status: 200 });
+  } catch (error) {
+    console.error('日記取得エラー:', error);
+    return NextResponse.json({ message: '日記の取得中にエラーが発生しました' }, { status: 500 });
+  }
+}
+
+
 export async function PUT(request: Request, { params }: { params: Params }) {
   try {
     const userId = await getUserIdFromToken(request);
