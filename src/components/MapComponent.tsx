@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
 import L from 'leaflet';
+import Link from 'next/link'; // Import Link
 
 // Component to update map center based on user location
 function MapContentUpdater({ center }: { center: [number, number] }) {
@@ -30,9 +31,11 @@ interface MapComponentProps {
   userLocation: [number, number];
   entries: DiaryEntry[];
   error: string;
+  currentUserId: string | null; // Added
+  onDelete: (id: string) => void; // Added
 }
 
-export default function MapComponent({ userLocation, entries, error }: MapComponentProps) {
+export default function MapComponent({ userLocation, entries, error, currentUserId, onDelete }: MapComponentProps) {
   // Fix for default marker icon issue with Webpack - runs only on client
   // This needs to be done once per application load where L is available
   useEffect(() => {
@@ -65,6 +68,19 @@ export default function MapComponent({ userLocation, entries, error }: MapCompon
                 <p className="text-gray-700 text-sm mb-1">{entry.description || '説明なし'}</p>
                 <p className="text-gray-500 text-xs">発見日時: {new Date(entry.takenAt).toLocaleString()}</p>
                 <p className="text-gray-500 text-xs">公開: {entry.isPublic ? 'はい' : 'いいえ'}</p>
+                {currentUserId === entry.userId && (
+                  <div className="mt-2 flex space-x-2">
+                    <Link href={`/entries/edit/${entry.id}`} className="px-3 py-1 bg-indigo-600 text-white rounded-md text-sm hover:bg-indigo-700">
+                      編集
+                    </Link>
+                    <button
+                      onClick={() => onDelete(entry.id)}
+                      className="px-3 py-1 bg-red-600 text-white rounded-md text-sm hover:bg-red-700"
+                    >
+                      削除
+                    </button>
+                  </div>
+                )}
               </div>
             </Popup>
           </Marker>
