@@ -6,25 +6,33 @@ import path from 'path';
 
 const prisma = new PrismaClient();
 
+// Helper function to verify JWT and get userId
+async function getUserIdFromToken(request: Request): Promise<string | null> {
+  const token = request.cookies.get('auth_token')?.value;
+  const jwtSecret = process.env.JWT_SECRET;
+
+  if (!token || !jwtSecret) {
+    
+    return null;
+  }
+
+  try {
+    const { payload } = await jwtVerify(token, new TextEncoder().encode(jwtSecret));
+    
+    return payload.userId as string;
+  } catch (error) {
+    
+    return null;
+  }
+}
+
 export async function GET(request: Request) {
   try {
-    const token = request.cookies.get('auth_token')?.value;
-    const jwtSecret = process.env.JWT_SECRET;
-
-    let userId: string | null = null;
-    if (token && jwtSecret) {
-      try {
-        const { payload } = await jwtVerify(token, new TextEncoder().encode(jwtSecret));
-        userId = payload.userId as string;
-      } catch (error) {
-        // Token invalid, treat as unauthenticated
-        console.error('GET entries: Token verification failed:', error);
-      }
-    }
+    const userId = await getUserIdFromToken(request);
+    
 
     let entries;
     if (userId) {
-      // Fetch all entries for the authenticated user
       entries = await prisma.diaryEntry.findMany({
         where: {
           OR: [
@@ -35,16 +43,18 @@ export async function GET(request: Request) {
         orderBy: { createdAt: 'desc' },
       });
     } else {
-      // Fetch only public entries for unauthenticated users
       entries = await prisma.diaryEntry.findMany({
         where: { isPublic: true },
         orderBy: { createdAt: 'desc' },
       });
     }
 
+    
+    
+
     return NextResponse.json({ entries }, { status: 200 });
   } catch (error) {
-    console.error('日記取得エラー:', error);
+    console.error('DEBUG: 日記取得エラー:', error);
     return NextResponse.json({ message: '日記の取得中にエラーが発生しました' }, { status: 500 });
   }
 }

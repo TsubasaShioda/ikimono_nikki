@@ -30,7 +30,7 @@ export default function HomePage() {
   const [error, setError] = useState('');
   const [userLocation, setUserLocation] = useState<[number, number] | null>(null);
   const [isClient, setIsClient] = useState(false);
-  const [currentUserId, setCurrentUserId] = useState<string | null>(null); // State to store current user ID
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const router = useRouter();
 
   useEffect(() => {
@@ -42,24 +42,23 @@ export default function HomePage() {
     if (isClient) {
       const fetchCurrentUser = async () => {
         try {
-          // Assuming you have an API endpoint to get current user info
-          const response = await fetch('/api/auth/me'); // This endpoint needs to be created
+          const response = await fetch('/api/auth/me');
           if (response.ok) {
             const data = await response.json();
             setCurrentUserId(data.user.id);
+            
           } else {
-            // Not logged in or token invalid, clear user ID
             setCurrentUserId(null);
+            
           }
         } catch (err) {
-          console.error('Failed to fetch current user:', err);
+          console.error('FRONTEND DEBUG: Failed to fetch current user:', err);
           setCurrentUserId(null);
         }
       };
       fetchCurrentUser();
     }
   }, [isClient]);
-
 
   // Fetch user location
   useEffect(() => {
@@ -81,21 +80,22 @@ export default function HomePage() {
     }
   }, [isClient]);
 
-  // Fetch diary entries
+  // Fetch diary entries - NOW DEPENDS ON currentUserId
   useEffect(() => {
-    if (isClient) {
+    if (isClient && currentUserId !== undefined) {
       const fetchEntries = async () => {
         try {
           const response = await fetch('/api/entries');
           const data = await response.json();
 
           if (response.ok) {
+            
             setEntries(data.entries);
           } else {
             setError(data.message || '日記の取得に失敗しました。');
           }
         } catch (err) {
-          console.error('Fetch entries error:', err);
+          console.error('FRONTEND DEBUG: Fetch entries error (inside useEffect):', err);
           setError('日記の取得中に予期せぬエラーが発生しました。');
         } finally {
           setLoading(false);
@@ -104,7 +104,7 @@ export default function HomePage() {
 
       fetchEntries();
     }
-  }, [isClient]);
+  }, [isClient, currentUserId]);
 
   const handleLogout = async () => {
     try {
@@ -144,6 +144,9 @@ export default function HomePage() {
     }
   };
 
+  
+  
+
   if (!isClient || loading || userLocation === null) {
     return <div className="min-h-screen flex items-center justify-center">地図を読み込み中...</div>;
   }
@@ -162,6 +165,9 @@ export default function HomePage() {
           </Link>
           <Link href="/entries/my" className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700">
             自分の日記
+          </Link>
+          <Link href="/settings" className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700">
+            プロフィール編集
           </Link>
           <button
             onClick={handleLogout}

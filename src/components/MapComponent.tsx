@@ -94,9 +94,16 @@ export default function MapComponent({ userLocation, entries, error, currentUser
                 {entry.imageUrl && (
                   <img src={entry.imageUrl} alt={entry.title} className="w-full h-32 object-cover rounded-md mb-2" />
                 )}
-                <p className="text-gray-700 text-sm mb-1">{entry.description || '説明なし'}</p>
-                <p className="text-gray-500 text-xs">発見日時: {new Date(entry.takenAt).toLocaleString()}</p>
-                <p className="text-gray-500 text-xs">公開: {entry.isPublic ? 'はい' : 'いいえ'}</p>
+                {/* Conditionally display description and public status */}
+                {entry.isPublic ? ( // If public, show all details
+                  <>
+                    <p className="text-gray-700 text-sm mb-1">{entry.description || '説明なし'}</p>
+                    <p className="text-gray-500 text-xs">発見日時: {new Date(entry.takenAt).toLocaleString()}</p>
+                    <p className="text-gray-500 text-xs">公開: {entry.isPublic ? 'はい' : 'いいえ'}</p>
+                  </>
+                ) : ( // If private, show limited details (only title and image are already shown above)
+                  <p className="text-gray-500 text-xs">非公開</p>
+                )}
                 {currentUserId === entry.userId && (
                   <div className="mt-2 flex space-x-2">
                     <Link href={`/entries/edit/${entry.id}`} className="px-3 py-1 bg-indigo-600 text-white rounded-md text-sm hover:bg-indigo-700">

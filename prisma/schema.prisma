@@ -15,6 +15,8 @@ model User {
   username      String        @unique
   email         String        @unique
   password_hash String
+  description   String?       // New field for profile description
+  iconUrl       String?       // New field for profile icon URL
   created_at    DateTime      @default(now())
   diaryEntries  DiaryEntry[]
 }
@@ -28,7 +30,7 @@ model DiaryEntry {
   imageUrl    String?
   latitude    Float
   longitude   Float
-  isPublic    Boolean   @default(false)
+  isPublic    Boolean   @default(false) // Keep this as is for now
   takenAt     DateTime
   createdAt   DateTime  @default(now())
 }
