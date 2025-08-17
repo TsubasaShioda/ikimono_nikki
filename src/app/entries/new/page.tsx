@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { MapContainer, TileLayer, Marker, useMapEvents } from 'react-leaflet';
 import L from 'leaflet';
+import { PrivacyLevel } from '@/lib/types'; // Import enum from shared location
 
 // Component to handle map clicks and update coordinates
 function MapClickHandler({ setLatitude, setLongitude }: { setLatitude: (lat: string) => void; setLongitude: (lng: string) => void }) {
@@ -19,15 +20,15 @@ function MapClickHandler({ setLatitude, setLongitude }: { setLatitude: (lat: str
 export default function NewEntryPage() {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
-  const [imageFile, setImageFile] = useState<File | null>(null); // Changed from imageUrl to imageFile
+  const [imageFile, setImageFile] = useState<File | null>(null);
   const [latitude, setLatitude] = useState('');
   const [longitude, setLongitude] = useState('');
   const [takenAt, setTakenAt] = useState('');
-  const [isPublic, setIsPublic] = useState(false);
+  const [privacyLevel, setPrivacyLevel] = useState<PrivacyLevel>(PrivacyLevel.PRIVATE); // Changed from isPublic
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
-  const [userLocation, setUserLocation] = useState<[number, number] | null>(null); // Added for map
-  const [isClient, setIsClient] = useState(false); // Added for map
+  const [userLocation, setUserLocation] = useState<[number, number] | null>(null);
+  const [isClient, setIsClient] = useState(false);
   const router = useRouter();
 
   useEffect(() => {
@@ -40,8 +41,8 @@ export default function NewEntryPage() {
       navigator.geolocation.getCurrentPosition(
         (position) => {
           setUserLocation([position.coords.latitude, position.coords.longitude]);
-          setLatitude(position.coords.latitude.toString()); // Set initial latitude
-          setLongitude(position.coords.longitude.toString()); // Set initial longitude
+          setLatitude(position.coords.latitude.toString());
+          setLongitude(position.coords.longitude.toString());
         },
         (err) => {
           console.error('Geolocation error:', err);
@@ -60,7 +61,7 @@ export default function NewEntryPage() {
     }
   }, [isClient]);
 
-  // Fix for default marker icon issue with Webpack - runs only on client
+  // Fix for default marker icon issue with Webpack
   useEffect(() => {
     if (typeof window !== 'undefined') {
       delete L.Icon.Default.prototype._getIconUrl;
@@ -91,12 +92,11 @@ export default function NewEntryPage() {
     formData.append('latitude', latitude);
     formData.append('longitude', longitude);
     formData.append('takenAt', takenAt);
-    formData.append('isPublic', isPublic.toString());
+    formData.append('privacyLevel', privacyLevel); // Changed from isPublic
 
     try {
       const response = await fetch('/api/entries', {
         method: 'POST',
-        // headers: { 'Content-Type': 'multipart/form-data' } // FormData handles this automatically
         body: formData,
       });
 
@@ -104,15 +104,7 @@ export default function NewEntryPage() {
 
       if (response.ok) {
         setSuccess(data.message || '日記が正常に投稿されました！');
-        // Optionally clear form or redirect
-        setTitle('');
-        setDescription('');
-        setImageFile(null); // Clear image file
-        setLatitude('');
-        setLongitude('');
-        setTakenAt('');
-        setIsPublic(false);
-        router.push('/'); // Redirect to home or entries list
+        router.push('/');
       } else {
         setError(data.message || '日記の投稿に失敗しました。');
       }
@@ -215,15 +207,35 @@ export default function NewEntryPage() {
               required
             />
           </div>
-          <div className="flex items-center">
-            <input
-              id="isPublic"
-              type="checkbox"
-              className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
-              checked={isPublic}
-              onChange={(e) => setIsPublic(e.target.checked)}
-            />
-            <label htmlFor="isPublic" className="ml-2 block text-sm text-gray-900">公開する</label>
+          {/* Changed from checkbox to radio buttons */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700">公開設定</label>
+            <div className="mt-2 space-y-2">
+              <div className="flex items-center">
+                <input
+                  id="private"
+                  name="privacyLevel"
+                  type="radio"
+                  className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300"
+                  value={PrivacyLevel.PRIVATE}
+                  checked={privacyLevel === PrivacyLevel.PRIVATE}
+                  onChange={(e) => setPrivacyLevel(e.target.value as PrivacyLevel)}
+                />
+                <label htmlFor="private" className="ml-3 block text-sm font-medium text-gray-900">非公開 (自分のみ)</label>
+              </div>
+              <div className="flex items-center">
+                <input
+                  id="public"
+                  name="privacyLevel"
+                  type="radio"
+                  className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300"
+                  value={PrivacyLevel.PUBLIC}
+                  checked={privacyLevel === PrivacyLevel.PUBLIC}
+                  onChange={(e) => setPrivacyLevel(e.target.value as PrivacyLevel)}
+                />
+                <label htmlFor="public" className="ml-3 block text-sm font-medium text-gray-900">公開 (全員)</label>
+              </div>
+            </div>
           </div>
           <div>
             <button

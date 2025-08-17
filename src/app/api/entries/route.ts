@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient, PrivacyLevel } from '@prisma/client'; // PrivacyLevelをインポート
 import { jwtVerify } from 'jose';
 import { promises as fs } from 'fs';
 import path from 'path';
@@ -12,16 +12,13 @@ async function getUserIdFromToken(request: Request): Promise<string | null> {
   const jwtSecret = process.env.JWT_SECRET;
 
   if (!token || !jwtSecret) {
-    
     return null;
   }
 
   try {
     const { payload } = await jwtVerify(token, new TextEncoder().encode(jwtSecret));
-    
     return payload.userId as string;
   } catch (error) {
-    
     return null;
   }
 }
@@ -29,28 +26,26 @@ async function getUserIdFromToken(request: Request): Promise<string | null> {
 export async function GET(request: Request) {
   try {
     const userId = await getUserIdFromToken(request);
-    
 
     let entries;
     if (userId) {
+      // ログインユーザーには、公開されている日記と自分の日記（プライベート含む）を見せる
       entries = await prisma.diaryEntry.findMany({
         where: {
           OR: [
-            { isPublic: true },
+            { privacyLevel: 'PUBLIC' },
             { userId: userId },
           ],
         },
         orderBy: { createdAt: 'desc' },
       });
     } else {
+      // 未ログインユーザーには、公開されている日記のみを見せる
       entries = await prisma.diaryEntry.findMany({
-        where: { isPublic: true },
+        where: { privacyLevel: 'PUBLIC' },
         orderBy: { createdAt: 'desc' },
       });
     }
-
-    
-    
 
     return NextResponse.json({ entries }, { status: 200 });
   } catch (error) {
@@ -83,7 +78,12 @@ export async function POST(request: Request) {
     const latitude = parseFloat(formData.get('latitude') as string);
     const longitude = parseFloat(formData.get('longitude') as string);
     const takenAt = formData.get('takenAt') as string;
-    const isPublic = formData.get('isPublic') === 'true';
+    const privacyLevel = formData.get('privacyLevel') as PrivacyLevel; // isPublicから変更
+
+    // Validate privacyLevel
+    if (!privacyLevel || !Object.values(PrivacyLevel).includes(privacyLevel)) {
+        return NextResponse.json({ message: '無効な公開レベルです' }, { status: 400 });
+    }
 
     let imageUrl: string | null = null;
     if (image) {
@@ -109,7 +109,7 @@ export async function POST(request: Request) {
         latitude,
         longitude,
         takenAt: new Date(takenAt),
-        isPublic,
+        privacyLevel, // isPublicから変更
         userId,
       },
     });

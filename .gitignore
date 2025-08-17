@@ -42,3 +42,6 @@ next-env.d.ts
 
 # Local progress log file
 PROGRESS_LOG.md
+
+# Uploaded files
+/public/uploads
