@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient, PrivacyLevel } from '@prisma/client'; // PrivacyLevelをインポート
 import { jwtVerify } from 'jose';
 import { promises as fs } from 'fs';
 import path from 'path';
@@ -41,11 +41,10 @@ export async function GET(request: Request, { params }: { params: Params }) {
       return NextResponse.json({ message: '日記が見つかりません' }, { status: 404 });
     }
 
-    // Optionally, you might want to check if the user has permission to view this entry
-    // For now, we'll allow viewing if it's public or if the user is the owner.
-    // This requires fetching the current user's ID.
+    // 閲覧権限のチェック
     const userId = await getUserIdFromToken(request);
-    if (!entry.isPublic && entry.userId !== userId) {
+    if (entry.privacyLevel !== 'PUBLIC' && entry.userId !== userId) {
+      // TODO: フレンド機能実装時に、FRIENDS_ONLYのロジックを追加
       return NextResponse.json({ message: 'この日記を閲覧する権限がありません' }, { status: 403 });
     }
 
@@ -72,7 +71,12 @@ export async function PUT(request: Request, { params }: { params: Params }) {
     const latitude = parseFloat(formData.get('latitude') as string);
     const longitude = parseFloat(formData.get('longitude') as string);
     const takenAt = formData.get('takenAt') as string;
-    const isPublic = formData.get('isPublic') === 'true';
+    const privacyLevel = formData.get('privacyLevel') as PrivacyLevel; // isPublicから変更
+
+    // Validate privacyLevel
+    if (!privacyLevel || !Object.values(PrivacyLevel).includes(privacyLevel)) {
+        return NextResponse.json({ message: '無効な公開レベルです' }, { status: 400 });
+    }
 
     // Find the existing entry
     const existingEntry = await prisma.diaryEntry.findUnique({
@@ -97,7 +101,6 @@ export async function PUT(request: Request, { params }: { params: Params }) {
           await fs.unlink(oldImagePath);
         } catch (unlinkError) {
           console.error('Failed to delete old image:', unlinkError);
-          // Continue even if old image deletion fails
         }
       }
 
@@ -120,7 +123,6 @@ export async function PUT(request: Request, { params }: { params: Params }) {
       imageUrl = null;
     }
 
-
     // Basic validation
     if (!title || isNaN(latitude) || isNaN(longitude) || !takenAt) {
       return NextResponse.json({ message: '必須項目が不足しています' }, { status: 400 });
@@ -135,7 +137,7 @@ export async function PUT(request: Request, { params }: { params: Params }) {
         latitude,
         longitude,
         takenAt: new Date(takenAt),
-        isPublic,
+        privacyLevel, // isPublicから変更
       },
     });
 
