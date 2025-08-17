@@ -11,20 +11,22 @@ datasource db {
 }
 
 model User {
-  id            String        @id @default(uuid())
-  username      String        @unique
-  email         String        @unique
-  password_hash String
-  description   String?       // New field for profile description
-  iconUrl       String?       // New field for profile icon URL
-  created_at    DateTime      @default(now())
-  diaryEntries  DiaryEntry[]
+  id                     String        @id @default(uuid())
+  username               String        @unique
+  email                  String        @unique
+  password_hash          String
+  description            String?
+  iconUrl                String?
+  created_at             DateTime      @default(now())
+  diaryEntries           DiaryEntry[]
+  sentFriendRequests     Friendship[]  @relation("sentRequests")
+  receivedFriendRequests Friendship[]  @relation("receivedRequests")
 }
 
 model DiaryEntry {
   id           String       @id @default(uuid())
   userId       String
-  user         User         @relation(fields: [userId], references: [id])
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
   title        String
   description  String?
   imageUrl     String?
@@ -32,12 +34,35 @@ model DiaryEntry {
   longitude    Float
   takenAt      DateTime
   createdAt    DateTime     @default(now())
-  privacyLevel PrivacyLevel @default(PRIVATE) // Replaces isPublic
+  privacyLevel PrivacyLevel @default(PRIVATE)
+}
+
+model Friendship {
+  id          String           @id @default(uuid())
+  requesterId String
+  addresseeId String
+  status      FriendshipStatus @default(PENDING)
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  requester User @relation("sentRequests", fields: [requesterId], references: [id], onDelete: Cascade)
+  addressee User @relation("receivedRequests", fields: [addresseeId], references: [id], onDelete: Cascade)
+
+  @@unique([requesterId, addresseeId])
+  @@index([requesterId])
+  @@index([addresseeId])
 }
 
 // Enum for privacy level
 enum PrivacyLevel {
-  PRIVATE      // Only the user can see
-  FRIENDS_ONLY // Friends can see
-  PUBLIC       // Everyone can see
+  PRIVATE
+  FRIENDS_ONLY
+  PUBLIC
+}
+
+// Enum for friendship status
+enum FriendshipStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
 }

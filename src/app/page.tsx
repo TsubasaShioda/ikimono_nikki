@@ -170,6 +170,9 @@ export default function HomePage() {
           <Link href="/entries/my" className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700">
             自分の日記
           </Link>
+          <Link href="/friends" className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700">
+            フレンド管理
+          </Link>
           
           {currentUser && (
             <Link href="/settings" className="w-10 h-10 rounded-full overflow-hidden bg-gray-200 flex items-center justify-center hover:opacity-80 transition-opacity">
