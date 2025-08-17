@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { PrismaClient, PrivacyLevel } from '@prisma/client'; // PrivacyLevelをインポート
+import { PrismaClient, PrivacyLevel } from '@prisma/client';
 import { jwtVerify } from 'jose';
 import { promises as fs } from 'fs';
 import path from 'path';
@@ -29,20 +29,42 @@ export async function GET(request: Request) {
 
     let entries;
     if (userId) {
-      // ログインユーザーには、公開されている日記と自分の日記（プライベート含む）を見せる
+      // Get friend IDs for the current user
+      const friendships = await prisma.friendship.findMany({
+        where: {
+          status: 'ACCEPTED',
+          OR: [
+            { requesterId: userId },
+            { addresseeId: userId },
+          ],
+        },
+        select: {
+          requesterId: true,
+          addresseeId: true,
+        },
+      });
+
+      const friendIds = friendships.map(f => 
+        f.requesterId === userId ? f.addresseeId : f.requesterId
+      );
+
       entries = await prisma.diaryEntry.findMany({
         where: {
           OR: [
-            { privacyLevel: 'PUBLIC' },
-            { userId: userId },
+            { privacyLevel: PrivacyLevel.PUBLIC }, // Public entries
+            { userId: userId }, // User's own entries (any privacy level)
+            { // Friends-only entries from accepted friends
+              privacyLevel: PrivacyLevel.FRIENDS_ONLY,
+              userId: { in: friendIds },
+            },
           ],
         },
         orderBy: { createdAt: 'desc' },
       });
     } else {
-      // 未ログインユーザーには、公開されている日記のみを見せる
+      // Unauthenticated users only see public entries
       entries = await prisma.diaryEntry.findMany({
-        where: { privacyLevel: 'PUBLIC' },
+        where: { privacyLevel: PrivacyLevel.PUBLIC },
         orderBy: { createdAt: 'desc' },
       });
     }

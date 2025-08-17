@@ -43,9 +43,32 @@ export async function GET(request: Request, { params }: { params: Params }) {
 
     // 閲覧権限のチェック
     const userId = await getUserIdFromToken(request);
-    if (entry.privacyLevel !== 'PUBLIC' && entry.userId !== userId) {
-      // TODO: フレンド機能実装時に、FRIENDS_ONLYのロジックを追加
-      return NextResponse.json({ message: 'この日記を閲覧する権限がありません' }, { status: 403 });
+
+    // If the entry is not public and not owned by the current user
+    if (entry.privacyLevel !== PrivacyLevel.PUBLIC && entry.userId !== userId) {
+      // If it's friends-only, check if the current user is a friend
+      if (entry.privacyLevel === PrivacyLevel.FRIENDS_ONLY) {
+        if (!userId) { // Not logged in, cannot be a friend
+          return NextResponse.json({ message: 'この日記を閲覧する権限がありません' }, { status: 403 });
+        }
+
+        // Check if the current user is a friend of the entry owner
+        const friendship = await prisma.friendship.findFirst({
+          where: {
+            status: 'ACCEPTED',
+            OR: [
+              { requesterId: userId, addresseeId: entry.userId },
+              { requesterId: entry.userId, addresseeId: userId },
+            ],
+          },
+        });
+
+        if (!friendship) { // Not friends
+          return NextResponse.json({ message: 'この日記を閲覧する権限がありません' }, { status: 403 });
+        }
+      } else { // PRIVATE entry, and not the owner
+        return NextResponse.json({ message: 'この日記を閲覧する権限がありません' }, { status: 403 });
+      }
     }
 
     return NextResponse.json({ entry }, { status: 200 });

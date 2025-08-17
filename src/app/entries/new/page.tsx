@@ -225,6 +225,18 @@ export default function NewEntryPage() {
               </div>
               <div className="flex items-center">
                 <input
+                  id="friends-only"
+                  name="privacyLevel"
+                  type="radio"
+                  className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300"
+                  value={PrivacyLevel.FRIENDS_ONLY}
+                  checked={privacyLevel === PrivacyLevel.FRIENDS_ONLY}
+                  onChange={(e) => setPrivacyLevel(e.target.value as PrivacyLevel)}
+                />
+                <label htmlFor="friends-only" className="ml-3 block text-sm font-medium text-gray-900">フレンドのみ</label>
+              </div>
+              <div className="flex items-center">
+                <input
                   id="public"
                   name="privacyLevel"
                   type="radio"
