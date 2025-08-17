@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { debounce } from 'lodash';
+import { FriendshipStatus } from '@/lib/types'; // Assuming you might add this to types.ts
 
 interface SearchUser {
   id: string;
@@ -10,40 +11,69 @@ interface SearchUser {
   iconUrl: string | null;
 }
 
+interface FriendRequest {
+  id: string; // Friendship ID
+  requester: SearchUser;
+}
+
 export default function FriendsPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<SearchUser[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
-  const [requestStatus, setRequestStatus] = useState<Record<string, string>>({}); // To track request status for each user
+  const [loadingSearch, setLoadingSearch] = useState(false);
+  const [searchError, setSearchError] = useState('');
+  const [requestStatus, setRequestStatus] = useState<Record<string, string>>({});
 
+  const [friendRequests, setFriendRequests] = useState<FriendRequest[]>([]);
+  const [loadingRequests, setLoadingRequests] = useState(true);
+
+  // Fetch incoming friend requests on component mount
+  useEffect(() => {
+    const fetchFriendRequests = async () => {
+      setLoadingRequests(true);
+      try {
+        const response = await fetch('/api/friends/requests');
+        const data = await response.json();
+        if (response.ok) {
+          setFriendRequests(data.friendRequests);
+        } else {
+          console.error(data.message);
+        }
+      } catch (err) {
+        console.error('Failed to fetch friend requests', err);
+      } finally {
+        setLoadingRequests(false);
+      }
+    };
+    fetchFriendRequests();
+  }, []);
+
+  // Debounced search function
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const debouncedSearch = useCallback(
     debounce(async (query: string) => {
       if (query.length < 2) {
         setSearchResults([]);
-        setLoading(false);
+        setLoadingSearch(false);
         return;
       }
-
-      setLoading(true);
-      setError('');
+      setLoadingSearch(true);
+      setSearchError('');
       try {
         const response = await fetch(`/api/users/search?q=${encodeURIComponent(query)}`);
         const data = await response.json();
         if (response.ok) {
           setSearchResults(data.users);
         } else {
-          setError(data.message || '検索に失敗しました。');
+          setSearchError(data.message || '検索に失敗しました。');
           setSearchResults([]);
         }
       } catch (err) {
-        setError('検索中にエラーが発生しました。');
+        setSearchError('検索中にエラーが発生しました。');
         setSearchResults([]);
       } finally {
-        setLoading(false);
+        setLoadingSearch(false);
       }
-    }, 500), // 500ms delay
+    }, 500),
     []
   );
 
@@ -56,14 +86,10 @@ export default function FriendsPage() {
     try {
       const response = await fetch('/api/friends/requests', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ addresseeId }),
       });
-
       const data = await response.json();
-
       if (response.ok) {
         setRequestStatus((prev) => ({ ...prev, [addresseeId]: 'sent' }));
       } else {
@@ -76,17 +102,31 @@ export default function FriendsPage() {
     }
   };
 
+  const handleRespondToRequest = async (friendshipId: string, status: 'ACCEPTED' | 'DECLINED') => {
+    try {
+      const response = await fetch(`/api/friends/requests/${friendshipId}`,
+        {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ status }),
+        }
+      );
+      if (response.ok) {
+        setFriendRequests((prev) => prev.filter((req) => req.id !== friendshipId));
+      } else {
+        const data = await response.json();
+        alert(`応答エラー: ${data.message || '不明なエラー'}`);
+      }
+    } catch (err) {
+      alert('応答中に予期せぬエラーが発生しました。');
+    }
+  };
+
   const getButtonState = (userId: string) => {
     const status = requestStatus[userId];
-    if (status === 'loading') {
-      return { text: '送信中...', disabled: true, className: 'bg-gray-400' };
-    }
-    if (status === 'sent') {
-      return { text: '申請済み', disabled: true, className: 'bg-green-600' };
-    }
-    if (status === 'error') {
-      return { text: '再試行', disabled: false, className: 'bg-red-600 hover:bg-red-700' };
-    }
+    if (status === 'loading') return { text: '送信中...', disabled: true, className: 'bg-gray-400' };
+    if (status === 'sent') return { text: '申請済み', disabled: true, className: 'bg-green-600' };
+    if (status === 'error') return { text: '再試行', disabled: false, className: 'bg-red-600 hover:bg-red-700' };
     return { text: 'フレンド申請', disabled: false, className: 'bg-indigo-600 hover:bg-indigo-700' };
   };
 
@@ -96,12 +136,39 @@ export default function FriendsPage() {
         <header className="mb-8">
           <h1 className="text-3xl font-bold text-gray-900">フレンド管理</h1>
           <p className="text-gray-600 mt-1">ユーザーを検索してフレンド申請を送ったり、受信した申請を確認したりできます。</p>
-          <div className="mt-4">
-            <Link href="/" className="text-indigo-600 hover:text-indigo-800 font-medium">
-              &larr; ホームに戻る
-            </Link>
-          </div>
+          <div className="mt-4"><Link href="/" className="text-indigo-600 hover:text-indigo-800 font-medium">&larr; ホームに戻る</Link></div>
         </header>
+
+        {/* Friend Requests Section */}
+        <section className="mb-8">
+          <h2 className="text-2xl font-semibold text-gray-800 mb-4">受信したフレンド申請</h2>
+          {loadingRequests ? (
+            <p className="text-gray-500">読み込み中...</p>
+          ) : friendRequests.length > 0 ? (
+            <div className="space-y-3">
+              {friendRequests.map((req) => (
+                <div key={req.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-md">
+                  <div className="flex items-center">
+                    <div className="w-10 h-10 rounded-full overflow-hidden bg-gray-200 flex items-center justify-center">
+                      {req.requester.iconUrl ? (
+                        <img src={req.requester.iconUrl} alt={`${req.requester.username}のアイコン`} className="w-full h-full object-cover" />
+                      ) : (
+                        <svg className="w-8 h-8 text-gray-500" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd"></path></svg>
+                      )}
+                    </div>
+                    <span className="ml-4 font-medium text-gray-800">{req.requester.username}</span>
+                  </div>
+                  <div className="flex space-x-2">
+                    <button onClick={() => handleRespondToRequest(req.id, 'ACCEPTED')} className="px-3 py-1.5 bg-green-600 text-white text-sm font-semibold rounded-md hover:bg-green-700">承認</button>
+                    <button onClick={() => handleRespondToRequest(req.id, 'DECLINED')} className="px-3 py-1.5 bg-red-600 text-white text-sm font-semibold rounded-md hover:bg-red-700">拒否</button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-gray-500 italic">受信したフレンド申請はありません。</p>
+          )}
+        </section>
 
         {/* User Search Section */}
         <section className="mb-8">
@@ -115,47 +182,37 @@ export default function FriendsPage() {
               onChange={(e) => setSearchQuery(e.target.value)}
             />
           </div>
-          {error && <p className="text-red-500 mt-2">{error}</p>}
+          {searchError && <p className="text-red-500 mt-2">{searchError}</p>}
           <div className="mt-4 space-y-3">
-            {loading ? (
+            {loadingSearch ? (
               <p className="text-gray-500">検索中...</p>
             ) : (
-              searchResults.length > 0 ? (
-                searchResults.map((user) => {
-                  const buttonState = getButtonState(user.id);
-                  return (
-                    <div key={user.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-md">
-                      <div className="flex items-center">
-                        <div className="w-10 h-10 rounded-full overflow-hidden bg-gray-200 flex items-center justify-center">
-                          {user.iconUrl ? (
-                            <img src={user.iconUrl} alt={`${user.username}のアイコン`} className="w-full h-full object-cover" />
-                          ) : (
-                            <svg className="w-8 h-8 text-gray-500" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd"></path></svg>
-                          )}
-                        </div>
-                        <span className="ml-4 font-medium text-gray-800">{user.username}</span>
+              searchResults.map((user) => {
+                const buttonState = getButtonState(user.id);
+                return (
+                  <div key={user.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-md">
+                    <div className="flex items-center">
+                      <div className="w-10 h-10 rounded-full overflow-hidden bg-gray-200 flex items-center justify-center">
+                        {user.iconUrl ? (
+                          <img src={user.iconUrl} alt={`${user.username}のアイコン`} className="w-full h-full object-cover" />
+                        ) : (
+                          <svg className="w-8 h-8 text-gray-500" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd"></path></svg>
+                        )}
                       </div>
-                      <button
-                        onClick={() => handleSendRequest(user.id)}
-                        disabled={buttonState.disabled}
-                        className={`px-4 py-1.5 text-white text-sm font-semibold rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 ${buttonState.className}`}
-                      >
-                        {buttonState.text}
-                      </button>
+                      <span className="ml-4 font-medium text-gray-800">{user.username}</span>
                     </div>
-                  )
-                })
-              ) : (
-                searchQuery.length >= 2 && <p className="text-gray-500">該当するユーザーが見つかりません。</p>
-              )
+                    <button
+                      onClick={() => handleSendRequest(user.id)}
+                      disabled={buttonState.disabled}
+                      className={`px-4 py-1.5 text-white text-sm font-semibold rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 ${buttonState.className}`}
+                    >
+                      {buttonState.text}
+                    </button>
+                  </div>
+                )
+              })
             )}
           </div>
-        </section>
-
-        {/* Friend Requests Section (Placeholder) */}
-        <section className="mb-8">
-          <h2 className="text-2xl font-semibold text-gray-800 mb-4">受信したフレンド申請</h2>
-          <div className="text-gray-500 italic">（ここにフレンド申請が表示されます）</div>
         </section>
 
         {/* Friends List Section (Placeholder) */}

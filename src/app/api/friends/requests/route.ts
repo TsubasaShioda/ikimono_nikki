@@ -17,6 +17,39 @@ async function getUserIdFromToken(request: Request): Promise<string | null> {
   }
 }
 
+export async function GET(request: Request) {
+  try {
+    const userId = await getUserIdFromToken(request);
+    if (!userId) {
+      return NextResponse.json({ message: '認証が必要です' }, { status: 401 });
+    }
+
+    const friendRequests = await prisma.friendship.findMany({
+      where: {
+        addresseeId: userId,
+        status: 'PENDING',
+      },
+      include: {
+        requester: {
+          select: {
+            id: true,
+            username: true,
+            iconUrl: true,
+          },
+        },
+      },
+      orderBy: {
+        createdAt: 'desc',
+      },
+    });
+
+    return NextResponse.json({ friendRequests }, { status: 200 });
+  } catch (error) {
+    console.error('Fetch friend requests error:', error);
+    return NextResponse.json({ message: 'フレンド申請の取得中にエラーが発生しました' }, { status: 500 });
+  }
+}
+
 export async function POST(request: Request) {
   try {
     const requesterId = await getUserIdFromToken(request);
