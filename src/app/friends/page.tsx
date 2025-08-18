@@ -3,12 +3,14 @@
 import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { debounce } from 'lodash';
+import { useRouter } from 'next/navigation'; // useRouterをインポート
 
 // --- TYPE DEFINITIONS ---
 interface UserProfile {
   id: string;
   username: string;
   iconUrl: string | null;
+  description?: string | null; // Add description for profile view
 }
 
 interface FriendRequest {
@@ -18,6 +20,53 @@ interface FriendRequest {
 
 interface Friend extends UserProfile {
   friendshipId: string;
+}
+
+// --- UserProfileModal Component ---
+interface UserProfileModalProps {
+  user: UserProfile | null;
+  onClose: () => void;
+  router: ReturnType<typeof useRouter>; // useRouterの型を追加
+}
+
+function UserProfileModal({ user, onClose, router }: UserProfileModalProps) {
+  if (!user) return null;
+
+  return (
+    <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full flex justify-center items-center z-50" onClick={onClose}> {/* 背景クリックで閉じる */}
+      <div className="relative p-8 bg-white w-96 mx-auto rounded-lg shadow-lg" onClick={(e) => e.stopPropagation()}> {/* モーダル内部のクリックは伝播させない */}
+        <button
+          className="absolute top-3 right-3 text-gray-500 hover:text-gray-800 text-2xl font-bold z-60 p-2"
+          onClick={(e) => { e.stopPropagation(); onClose(); }} // stopPropagationを追加
+        >
+          &times;
+        </button>
+        <h2 className="text-2xl font-bold mb-4 text-center text-gray-900">{user.username}のプロフィール</h2>
+        <div className="flex flex-col items-center mb-4">
+          <div className="w-24 h-24 rounded-full overflow-hidden bg-gray-200 flex items-center justify-center mb-4">
+            {user.iconUrl ? (
+              <img src={user.iconUrl} alt={`${user.username}のアイコン`} className="w-full h-full object-cover" />
+            ) : (
+              <svg className="w-16 h-16 text-gray-500" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd"></path></svg>
+            )}
+          </div>
+          <p className="text-lg font-semibold text-gray-800">@{user.username}</p>
+          {user.description && <p className="text-gray-600 text-center mt-2">{user.description}</p>}
+        </div>
+        <div className="flex justify-center mt-4">
+          <button
+            onClick={() => {
+              router.push(`/entries/user/${user.id}`);
+              onClose(); // モーダルを閉じる
+            }}
+            className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+          >
+            {user.username}さんの日記を見る
+          </button>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 export default function FriendsPage() {
@@ -33,6 +82,11 @@ export default function FriendsPage() {
 
   const [friends, setFriends] = useState<Friend[]>([]);
   const [loadingFriends, setLoadingFriends] = useState(true);
+
+  const [showProfileModal, setShowProfileModal] = useState(false);
+  const [selectedUserForProfile, setSelectedUserForProfile] = useState<UserProfile | null>(null);
+
+  const router = useRouter(); // useRouterをここで呼び出す
 
   // --- DATA FETCHING ---
   const fetchFriendRequests = useCallback(async () => {
@@ -119,7 +173,6 @@ export default function FriendsPage() {
       if (response.ok) {
         setFriendRequests((prev) => prev.filter((req) => req.id !== friendshipId));
         if (status === 'ACCEPTED') {
-          // Refresh friends list after accepting a request
           fetchFriends();
         }
       } else {
@@ -146,6 +199,21 @@ export default function FriendsPage() {
       }
     } catch (err) {
       alert('フレンド解除中にエラーが発生しました。');
+    }
+  };
+
+  const handleViewProfile = async (userId: string) => {
+    try {
+      const response = await fetch(`/api/users/${userId}`);
+      const data = await response.json();
+      if (response.ok) {
+        setSelectedUserForProfile(data.user);
+        setShowProfileModal(true);
+      } else {
+        alert(`プロフィールの取得に失敗しました: ${data.message || '不明なエラー'}`);
+      }
+    } catch (err) {
+      alert('プロフィールの取得中にエラーが発生しました。');
     }
   };
 
@@ -176,7 +244,7 @@ export default function FriendsPage() {
             <div className="space-y-3">
               {friendRequests.map((req) => (
                 <div key={req.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-md">
-                  <div className="flex items-center">
+                  <div className="flex items-center cursor-pointer" onClick={() => handleViewProfile(req.requester.id)}>
                     <div className="w-10 h-10 rounded-full overflow-hidden bg-gray-200 flex items-center justify-center">
                       {req.requester.iconUrl ? <img src={req.requester.iconUrl} alt="" className="w-full h-full object-cover" /> : <svg className="w-8 h-8 text-gray-500" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd"></path></svg>}
                     </div>
@@ -203,7 +271,7 @@ export default function FriendsPage() {
             <div className="space-y-3">
               {friends.map((friend) => (
                 <div key={friend.friendshipId} className="flex items-center justify-between p-3 bg-gray-50 rounded-md">
-                  <div className="flex items-center">
+                  <div className="flex items-center cursor-pointer" onClick={() => handleViewProfile(friend.id)}>
                     <div className="w-10 h-10 rounded-full overflow-hidden bg-gray-200 flex items-center justify-center">
                       {friend.iconUrl ? <img src={friend.iconUrl} alt="" className="w-full h-full object-cover" /> : <svg className="w-8 h-8 text-gray-500" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd"></path></svg>}
                     </div>
@@ -239,7 +307,7 @@ export default function FriendsPage() {
                 const buttonState = getButtonState(user.id);
                 return (
                   <div key={user.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-md">
-                    <div className="flex items-center">
+                    <div className="flex items-center cursor-pointer" onClick={() => handleViewProfile(user.id)}>
                       <div className="w-10 h-10 rounded-full overflow-hidden bg-gray-200 flex items-center justify-center">
                         {user.iconUrl ? <img src={user.iconUrl} alt="" className="w-full h-full object-cover" /> : <svg className="w-8 h-8 text-gray-500" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd"></path></svg>}
                       </div>
@@ -260,6 +328,7 @@ export default function FriendsPage() {
         </section>
 
       </div>
+      <UserProfileModal user={selectedUserForProfile} onClose={() => { setShowProfileModal(false); setSelectedUserForProfile(null); }} router={router} />
     </div>
   );
 }
