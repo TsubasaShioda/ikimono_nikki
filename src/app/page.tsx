@@ -1,9 +1,10 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import dynamic from 'next/dynamic';
+import { debounce } from 'lodash'; // lodashのdebounceをインポート
 
 // Dynamically import MapComponent
 const MapComponent = dynamic(
@@ -18,7 +19,7 @@ interface DiaryEntry {
   imageUrl: string | null;
   latitude: number;
   longitude: number;
-  isPublic: boolean;
+  privacyLevel: 'PRIVATE' | 'FRIENDS_ONLY' | 'PUBLIC'; // Use PrivacyLevel enum
   takenAt: string;
   createdAt: string;
   userId: string; // Ensure userId is part of the interface
@@ -31,11 +32,13 @@ interface CurrentUser {
 
 export default function HomePage() {
   const [entries, setEntries] = useState<DiaryEntry[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [initialLoading, setInitialLoading] = useState(true); // 初回読み込み用
+  const [searchLoading, setSearchLoading] = useState(false); // 検索中用
   const [error, setError] = useState('');
   const [userLocation, setUserLocation] = useState<[number, number] | null>(null);
   const [isClient, setIsClient] = useState(false);
   const [currentUser, setCurrentUser] = useState<CurrentUser | null>(null);
+  const [searchQuery, setSearchQuery] = useState(''); // 検索クエリのstate
   const router = useRouter();
 
   useEffect(() => {
@@ -87,31 +90,39 @@ export default function HomePage() {
     }
   }, [isClient]);
 
-  // Fetch diary entries - NOW DEPENDS ON currentUser
-  useEffect(() => {
-    // We fetch entries only when we know who the user is (or if they are not logged in)
-    if (isClient && currentUser !== undefined) {
-      const fetchEntries = async () => {
-        try {
-          const response = await fetch('/api/entries');
-          const data = await response.json();
+  // Fetch diary entries based on search query or all entries
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const fetchEntries = useCallback(
+    debounce(async (query: string) => {
+      if (!isClient || currentUser === undefined) return;
 
-          if (response.ok) {
-            setEntries(data.entries);
-          } else {
-            setError(data.message || '日記の取得に失敗しました。');
-          }
-        } catch (err) {
-          console.error('FRONTEND DEBUG: Fetch entries error (inside useEffect):', err);
-          setError('日記の取得中に予期せぬエラーが発生しました。');
-        } finally {
-          setLoading(false);
+      setSearchLoading(true); // 検索中はsearchLoadingをtrueに
+      setError('');
+      try {
+        const url = query ? `/api/entries/search?q=${encodeURIComponent(query)}` : '/api/entries';
+        const response = await fetch(url);
+        const data = await response.json();
+
+        if (response.ok) {
+          setEntries(data.entries);
+        } else {
+          setError(data.message || '日記の取得に失敗しました。');
         }
-      };
+      } catch (err) {
+        console.error('FRONTEND DEBUG: Fetch entries error:', err);
+        setError('日記の取得中に予期せぬエラーが発生しました。');
+      } finally {
+        setSearchLoading(false); // 検索終了後はsearchLoadingをfalseに
+        setInitialLoading(false); // 初回読み込みも完了
+      }
+    }, 300), // 300ms debounce
+    [isClient, currentUser] // Dependencies for useCallback
+  );
 
-      fetchEntries();
-    }
-  }, [isClient, currentUser]);
+  useEffect(() => {
+    fetchEntries(searchQuery);
+  }, [searchQuery, fetchEntries]);
+
 
   const handleLogout = async () => {
     try {
@@ -151,7 +162,7 @@ export default function HomePage() {
     }
   };
 
-  if (!isClient || loading || userLocation === null) {
+  if (!isClient || initialLoading || userLocation === null) { // initialLoadingを使用
     return <div className="min-h-screen flex items-center justify-center">地図を読み込み中...</div>;
   }
 
@@ -164,6 +175,21 @@ export default function HomePage() {
       <header className="flex justify-between items-center py-4 px-6 bg-white shadow-md rounded-b-lg mb-4">
         <h1 className="text-3xl font-bold text-gray-900">生き物日記マップ</h1>
         <nav className="flex items-center space-x-4">
+          <div className="relative flex items-center"> {/* 検索バーとローディングスピナーを囲む */}
+            <input
+              type="search"
+              placeholder="日記を検索..."
+              className="px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 text-gray-900 pr-10" // 右側にパディングを追加
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
+            {searchLoading && ( // 検索中のスピナー
+              <svg className="animate-spin h-5 w-5 text-gray-500 absolute right-3" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              </svg>
+            )}
+          </div>
           <Link href="/entries/new" className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700">
             新しい日記を投稿
           </Link>
