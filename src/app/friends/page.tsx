@@ -131,9 +131,22 @@ export default function FriendsPage() {
     }
   };
   
-  const handleRemoveFriend = (friendshipId: string) => {
-    // TODO: Implement friend removal logic
-    alert(`フレンドを解除しました (Friendship ID: ${friendshipId})`);
+  const handleRemoveFriend = async (friendshipId: string) => {
+    if (!window.confirm('本当にこのフレンドを解除しますか？')) return;
+    try {
+      const response = await fetch(`/api/friends/${friendshipId}`, {
+        method: 'DELETE',
+      });
+      if (response.ok) {
+        setFriends((prev) => prev.filter((friend) => friend.friendshipId !== friendshipId));
+        alert('フレンドを解除しました。');
+      } else {
+        const data = await response.json();
+        alert(`解除エラー: ${data.message || '不明なエラー'}`);
+      }
+    } catch (err) {
+      alert('フレンド解除中にエラーが発生しました。');
+    }
   };
 
   const getButtonState = (userId: string) => {
