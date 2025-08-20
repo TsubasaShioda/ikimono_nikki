@@ -26,10 +26,7 @@ export async function GET(request: Request) {
 
     const { searchParams } = new URL(request.url);
     const query = searchParams.get('q');
-
-    if (!query || query.trim() === '') {
-      return NextResponse.json({ entries: [] }, { status: 200 });
-    }
+    const categoryId = searchParams.get('categoryId'); // categoryIdを取得
 
     // Get friend IDs for the current user
     const friendships = await prisma.friendship.findMany({
@@ -50,23 +47,32 @@ export async function GET(request: Request) {
       f.requesterId === userId ? f.addresseeId : f.requesterId
     );
 
-    const entries = await prisma.diaryEntry.findMany({
-      where: {
+    const whereConditions: any = {
+      AND: { // Apply privacy filters
         OR: [
-          { title: { contains: query } },
-          { description: { contains: query } },
+          { privacyLevel: PrivacyLevel.PUBLIC }, // Public entries
+          { userId: userId }, // User's own entries (any privacy level)
+          { // Friends-only entries from accepted friends
+            privacyLevel: PrivacyLevel.FRIENDS_ONLY,
+            userId: { in: friendIds },
+          },
         ],
-        AND: { // Apply privacy filters
-          OR: [
-            { privacyLevel: PrivacyLevel.PUBLIC }, // Public entries
-            { userId: userId }, // User's own entries (any privacy level)
-            { // Friends-only entries from accepted friends
-              privacyLevel: PrivacyLevel.FRIENDS_ONLY,
-              userId: { in: friendIds },
-            },
-          ],
-        },
       },
+    };
+
+    if (query && query.trim() !== '') {
+      whereConditions.OR = [
+        { title: { contains: query } },
+        { description: { contains: query } },
+      ];
+    }
+
+    if (categoryId) {
+      whereConditions.categoryId = categoryId;
+    }
+
+    const entries = await prisma.diaryEntry.findMany({
+      where: whereConditions,
       orderBy: { createdAt: 'desc' },
     });
 

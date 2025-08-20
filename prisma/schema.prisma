@@ -35,6 +35,19 @@ model DiaryEntry {
   takenAt      DateTime
   createdAt    DateTime     @default(now())
   privacyLevel PrivacyLevel @default(PRIVATE)
+  // New fields for category
+  categoryId   String?
+  category     Category?    @relation(fields: [categoryId], references: [id])
+
+  @@index([categoryId]) // Add index for categoryId
+}
+
+model Category {
+  id           String       @id @default(uuid())
+  name         String       @unique
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+  diaryEntries DiaryEntry[]
 }
 
 model Friendship {

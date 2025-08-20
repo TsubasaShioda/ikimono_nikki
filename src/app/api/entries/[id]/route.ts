@@ -95,6 +95,7 @@ export async function PUT(request: Request, { params }: { params: Params }) {
     const longitude = parseFloat(formData.get('longitude') as string);
     const takenAt = formData.get('takenAt') as string;
     const privacyLevel = formData.get('privacyLevel') as PrivacyLevel; // isPublicから変更
+    const categoryId = formData.get('categoryId') as string | null; // categoryIdを取得
 
     // Validate privacyLevel
     if (!privacyLevel || !Object.values(PrivacyLevel).includes(privacyLevel)) {
@@ -161,6 +162,7 @@ export async function PUT(request: Request, { params }: { params: Params }) {
         longitude,
         takenAt: new Date(takenAt),
         privacyLevel, // isPublicから変更
+        categoryId: categoryId || null, // categoryIdが空文字列の場合はnullとして保存
       },
     });
 

@@ -29,6 +29,8 @@ export default function NewEntryPage() {
   const [success, setSuccess] = useState('');
   const [userLocation, setUserLocation] = useState<[number, number] | null>(null);
   const [isClient, setIsClient] = useState(false);
+  const [categories, setCategories] = useState<{ id: string; name: string }[]>([]); // カテゴリ一覧のstate
+  const [selectedCategoryId, setSelectedCategoryId] = useState(''); // 選択されたカテゴリIDのstate
   const router = useRouter();
 
   useEffect(() => {
@@ -58,6 +60,26 @@ export default function NewEntryPage() {
       setUserLocation([35.6895, 139.6917]); // Default to Tokyo
       setLatitude('35.6895');
       setLongitude('139.6917');
+    }
+  }, [isClient]);
+
+  // Fetch categories
+  useEffect(() => {
+    if (isClient) {
+      const fetchCategories = async () => {
+        try {
+          const response = await fetch('/api/categories');
+          const data = await response.json();
+          if (response.ok) {
+            setCategories(data.categories);
+          } else {
+            console.error('Failed to fetch categories:', data.message);
+          }
+        } catch (err) {
+          console.error('Error fetching categories:', err);
+        }
+      };
+      fetchCategories();
     }
   }, [isClient]);
 
@@ -92,7 +114,10 @@ export default function NewEntryPage() {
     formData.append('latitude', latitude);
     formData.append('longitude', longitude);
     formData.append('takenAt', takenAt);
-    formData.append('privacyLevel', privacyLevel); // Changed from isPublic
+    formData.append('privacyLevel', privacyLevel);
+    if (selectedCategoryId) { // カテゴリが選択されていれば追加
+      formData.append('categoryId', selectedCategoryId);
+    }
 
     try {
       const response = await fetch('/api/entries', {
@@ -155,6 +180,22 @@ export default function NewEntryPage() {
               className="mt-1 block w-full text-sm text-gray-900 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100"
               onChange={(e) => setImageFile(e.target.files ? e.target.files[0] : null)}
             />
+          </div>
+          <div>
+            <label htmlFor="category" className="block text-sm font-medium text-gray-700">カテゴリ</label>
+            <select
+              id="category"
+              className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm text-gray-900"
+              value={selectedCategoryId}
+              onChange={(e) => setSelectedCategoryId(e.target.value)}
+            >
+              <option value="">選択してください</option>
+              {categories.map((category) => (
+                <option key={category.id} value={category.id}>
+                  {category.name}
+                </option>
+              ))}
+            </select>
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div>

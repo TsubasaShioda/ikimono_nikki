@@ -30,6 +30,11 @@ interface CurrentUser {
   iconUrl: string | null;
 }
 
+interface Category {
+  id: string;
+  name: string;
+}
+
 export default function HomePage() {
   const [entries, setEntries] = useState<DiaryEntry[]>([]);
   const [initialLoading, setInitialLoading] = useState(true); // 初回読み込み用
@@ -39,6 +44,8 @@ export default function HomePage() {
   const [isClient, setIsClient] = useState(false);
   const [currentUser, setCurrentUser] = useState<CurrentUser | null>(null);
   const [searchQuery, setSearchQuery] = useState(''); // 検索クエリのstate
+  const [categories, setCategories] = useState<Category[]>([]); // カテゴリ一覧のstate
+  const [selectedCategoryId, setSelectedCategoryId] = useState(''); // 選択されたカテゴリIDのstate
   const router = useRouter();
 
   useEffect(() => {
@@ -90,16 +97,48 @@ export default function HomePage() {
     }
   }, [isClient]);
 
+  // Fetch categories
+  useEffect(() => {
+    if (isClient) {
+      const fetchCategories = async () => {
+        try {
+          const response = await fetch('/api/categories');
+          const data = await response.json();
+          if (response.ok) {
+            setCategories(data.categories);
+          } else {
+            console.error('Failed to fetch categories:', data.message);
+          }
+        } catch (err) {
+          console.error('Error fetching categories:', err);
+        }
+      };
+      fetchCategories();
+    }
+  }, [isClient]);
+
   // Fetch diary entries based on search query or all entries
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const fetchEntries = useCallback(
-    debounce(async (query: string) => {
+    debounce(async (query: string, categoryId: string) => {
       if (!isClient || currentUser === undefined) return;
 
       setSearchLoading(true); // 検索中はsearchLoadingをtrueに
       setError('');
       try {
-        const url = query ? `/api/entries/search?q=${encodeURIComponent(query)}` : '/api/entries';
+        let url = '/api/entries';
+        const params = new URLSearchParams();
+        if (query) {
+          params.append('q', query);
+        }
+        if (categoryId) {
+          params.append('categoryId', categoryId);
+        }
+
+        if (params.toString()) {
+          url = `/api/entries/search?${params.toString()}`;
+        }
+
         const response = await fetch(url);
         const data = await response.json();
 
@@ -120,8 +159,8 @@ export default function HomePage() {
   );
 
   useEffect(() => {
-    fetchEntries(searchQuery);
-  }, [searchQuery, fetchEntries]);
+    fetchEntries(searchQuery, selectedCategoryId);
+  }, [searchQuery, selectedCategoryId, fetchEntries]);
 
 
   const handleLogout = async () => {
@@ -190,6 +229,19 @@ export default function HomePage() {
               </svg>
             )}
           </div>
+          {/* カテゴリ選択ドロップダウン */}
+          <select
+            className="px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 text-gray-900"
+            value={selectedCategoryId}
+            onChange={(e) => setSelectedCategoryId(e.target.value)}
+          >
+            <option value="">すべてのカテゴリ</option>
+            {categories.map((category) => (
+              <option key={category.id} value={category.id}>
+                {category.name}
+              </option>
+            ))}
+          </select>
           <Link href="/entries/new" className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700">
             新しい日記を投稿
           </Link>

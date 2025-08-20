@@ -29,6 +29,12 @@ interface DiaryEntry {
   takenAt: string;
   createdAt: string;
   userId: string;
+  categoryId: string | null; // Add categoryId
+}
+
+interface Category {
+  id: string;
+  name: string;
 }
 
 export default function EditEntryPage() {
@@ -43,7 +49,9 @@ export default function EditEntryPage() {
   const [latitude, setLatitude] = useState('');
   const [longitude, setLongitude] = useState('');
   const [takenAt, setTakenAt] = useState('');
-  const [privacyLevel, setPrivacyLevel] = useState<PrivacyLevel>(PrivacyLevel.PRIVATE); // Changed from isPublic
+  const [privacyLevel, setPrivacyLevel] = useState<PrivacyLevel>(PrivacyLevel.PRIVATE);
+  const [categoryId, setCategoryId] = useState(''); // Add categoryId state
+  const [categories, setCategories] = useState<Category[]>([]); // Add categories state
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [loading, setLoading] = useState(true);
@@ -53,6 +61,26 @@ export default function EditEntryPage() {
   useEffect(() => {
     setIsClient(true);
   }, []);
+
+  // Fetch categories
+  useEffect(() => {
+    if (isClient) {
+      const fetchCategories = async () => {
+        try {
+          const response = await fetch('/api/categories');
+          const data = await response.json();
+          if (response.ok) {
+            setCategories(data.categories);
+          } else {
+            console.error('Failed to fetch categories:', data.message);
+          }
+        } catch (err) {
+          console.error('Error fetching categories:', err);
+        }
+      };
+      fetchCategories();
+    }
+  }, [isClient]);
 
   // Fetch existing entry data
   useEffect(() => {
@@ -70,7 +98,8 @@ export default function EditEntryPage() {
             setLatitude(entry.latitude.toString());
             setLongitude(entry.longitude.toString());
             setTakenAt(new Date(entry.takenAt).toISOString().slice(0, 16));
-            setPrivacyLevel(entry.privacyLevel); // Changed from setIsPublic
+            setPrivacyLevel(entry.privacyLevel);
+            setCategoryId(entry.categoryId || ''); // Set categoryId
           } else {
             setError(data.message || '日記の取得に失敗しました。');
           }
@@ -137,7 +166,10 @@ export default function EditEntryPage() {
     formData.append('latitude', latitude);
     formData.append('longitude', longitude);
     formData.append('takenAt', takenAt);
-    formData.append('privacyLevel', privacyLevel); // Changed from isPublic
+    formData.append('privacyLevel', privacyLevel);
+    if (categoryId) { // カテゴリが選択されていれば追加
+      formData.append('categoryId', categoryId);
+    }
 
     try {
       const response = await fetch(`/api/entries/${entryId}`, {
@@ -217,6 +249,22 @@ export default function EditEntryPage() {
                 </button>
               </div>
             )}
+          </div>
+          <div>
+            <label htmlFor="category" className="block text-sm font-medium text-gray-700">カテゴリ</label>
+            <select
+              id="category"
+              className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm text-gray-900"
+              value={categoryId}
+              onChange={(e) => setCategoryId(e.target.value)}
+            >
+              <option value="">選択してください</option>
+              {categories.map((category) => (
+                <option key={category.id} value={category.id}>
+                  {category.name}
+                </option>
+              ))}
+            </select>
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div>
