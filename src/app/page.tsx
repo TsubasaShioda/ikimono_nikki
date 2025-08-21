@@ -46,6 +46,7 @@ export default function HomePage() {
   const [searchQuery, setSearchQuery] = useState(''); // 検索クエリのstate
   const [categories, setCategories] = useState<Category[]>([]); // カテゴリ一覧のstate
   const [selectedCategoryId, setSelectedCategoryId] = useState(''); // 選択されたカテゴリIDのstate
+  const [selectedBounds, setSelectedBounds] = useState<{ minLat: number; maxLat: number; minLng: number; maxLng: number } | null>(null); // エリア選択のstate
   const router = useRouter();
 
   useEffect(() => {
@@ -120,7 +121,7 @@ export default function HomePage() {
   // Fetch diary entries based on search query or all entries
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const fetchEntries = useCallback(
-    debounce(async (query: string, categoryId: string) => {
+    debounce(async (query: string, categoryId: string, bounds: typeof selectedBounds) => {
       if (!isClient || currentUser === undefined) return;
 
       setSearchLoading(true); // 検索中はsearchLoadingをtrueに
@@ -133,6 +134,12 @@ export default function HomePage() {
         }
         if (categoryId) {
           params.append('categoryId', categoryId);
+        }
+        if (bounds) {
+          params.append('minLat', bounds.minLat.toString());
+          params.append('maxLat', bounds.maxLat.toString());
+          params.append('minLng', bounds.minLng.toString());
+          params.append('maxLng', bounds.maxLng.toString());
         }
 
         if (params.toString()) {
@@ -150,7 +157,8 @@ export default function HomePage() {
       } catch (err) {
         console.error('FRONTEND DEBUG: Fetch entries error:', err);
         setError('日記の取得中に予期せぬエラーが発生しました。');
-      } finally {
+      }
+      finally {
         setSearchLoading(false); // 検索終了後はsearchLoadingをfalseに
         setInitialLoading(false); // 初回読み込みも完了
       }
@@ -159,8 +167,8 @@ export default function HomePage() {
   );
 
   useEffect(() => {
-    fetchEntries(searchQuery, selectedCategoryId);
-  }, [searchQuery, selectedCategoryId, fetchEntries]);
+    fetchEntries(searchQuery, selectedCategoryId, selectedBounds);
+  }, [searchQuery, selectedCategoryId, selectedBounds, fetchEntries]);
 
 
   const handleLogout = async () => {
@@ -190,7 +198,8 @@ export default function HomePage() {
         if (response.ok) {
           setEntries(entries.filter(entry => entry.id !== id));
           alert('日記が正常に削除されました。');
-        } else {
+        }
+        else {
           const data = await response.json();
           alert(data.message || '日記の削除に失敗しました。');
         }
@@ -199,6 +208,10 @@ export default function HomePage() {
         alert('日記の削除中にエラーが発生しました。');
       }
     }
+  };
+
+  const handleResetBounds = () => {
+    setSelectedBounds(null);
   };
 
   if (!isClient || initialLoading || userLocation === null) { // initialLoadingを使用
@@ -271,7 +284,17 @@ export default function HomePage() {
         </nav>
       </header>
 
-      <MapComponent userLocation={userLocation} entries={entries} error={error} currentUserId={currentUser?.id || null} onDelete={handleDelete} />
+      <MapComponent userLocation={userLocation} entries={entries} error={error} currentUserId={currentUser?.id || null} onDelete={handleDelete} onBoundsChange={setSelectedBounds} />
+      {selectedBounds && (
+        <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 z-100"> {/* z-indexをz-100に変更 */}
+          <button
+            onClick={handleResetBounds}
+            className="px-4 py-2 bg-blue-500 text-white rounded-md shadow-lg hover:bg-blue-600"
+          >
+            エリア選択を解除
+          </button>
+        </div>
+      )}
     </div>
   );
 }

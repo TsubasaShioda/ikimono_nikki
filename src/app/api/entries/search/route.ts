@@ -26,7 +26,11 @@ export async function GET(request: Request) {
 
     const { searchParams } = new URL(request.url);
     const query = searchParams.get('q');
-    const categoryId = searchParams.get('categoryId'); // categoryIdを取得
+    const categoryId = searchParams.get('categoryId');
+    const minLat = searchParams.get('minLat');
+    const maxLat = searchParams.get('maxLat');
+    const minLng = searchParams.get('minLng');
+    const maxLng = searchParams.get('maxLng');
 
     // Get friend IDs for the current user
     const friendships = await prisma.friendship.findMany({
@@ -48,27 +52,45 @@ export async function GET(request: Request) {
     );
 
     const whereConditions: any = {
-      AND: { // Apply privacy filters
-        OR: [
-          { privacyLevel: PrivacyLevel.PUBLIC }, // Public entries
-          { userId: userId }, // User's own entries (any privacy level)
-          { // Friends-only entries from accepted friends
-            privacyLevel: PrivacyLevel.FRIENDS_ONLY,
-            userId: { in: friendIds },
-          },
-        ],
-      },
+      AND: [ // Apply privacy filters
+        {
+          OR: [
+            { privacyLevel: PrivacyLevel.PUBLIC }, // Public entries
+            { userId: userId }, // User's own entries (any privacy level)
+            { // Friends-only entries from accepted friends
+              privacyLevel: PrivacyLevel.FRIENDS_ONLY,
+              userId: { in: friendIds },
+            },
+          ],
+        },
+      ],
     };
 
     if (query && query.trim() !== '') {
-      whereConditions.OR = [
-        { title: { contains: query } },
-        { description: { contains: query } },
-      ];
+      whereConditions.AND.push({
+        OR: [
+          { title: { contains: query } },
+          { description: { contains: query } },
+        ],
+      });
     }
 
     if (categoryId) {
-      whereConditions.categoryId = categoryId;
+      whereConditions.AND.push({ categoryId: categoryId });
+    }
+
+    // Add geographical filters
+    if (minLat && maxLat && minLng && maxLng) {
+      whereConditions.AND.push({
+        latitude: {
+          gte: parseFloat(minLat),
+          lte: parseFloat(maxLat),
+        },
+        longitude: {
+          gte: parseFloat(minLng),
+          lte: parseFloat(maxLng),
+        },
+      });
     }
 
     const entries = await prisma.diaryEntry.findMany({

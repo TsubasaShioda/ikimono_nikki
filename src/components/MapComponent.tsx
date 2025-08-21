@@ -1,9 +1,14 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react'; // Import useMemo
+import { useState, useEffect, useMemo, useRef } from 'react'; // useRefをインポート
 import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import Link from 'next/link';
+
+// react-leaflet-drawのインポート
+import { FeatureGroup } from 'react-leaflet';
+import { EditControl } from 'react-leaflet-draw';
+import 'leaflet-draw/dist/leaflet.draw.css'; // leaflet-drawのCSSをインポート
 
 // Component to update map center based on user location
 function MapContentUpdater({ center }: { center: [number, number] }) {
@@ -21,7 +26,7 @@ interface DiaryEntry {
   imageUrl: string | null;
   latitude: number;
   longitude: number;
-  isPublic: boolean;
+  privacyLevel: 'PRIVATE' | 'FRIENDS_ONLY' | 'PUBLIC'; // Use PrivacyLevel enum
   takenAt: string;
   createdAt: string;
   userId: string;
@@ -33,9 +38,10 @@ interface MapComponentProps {
   error: string;
   currentUserId: string | null;
   onDelete: (id: string) => void;
+  onBoundsChange: (bounds: { minLat: number; maxLat: number; minLng: number; maxLng: number } | null) => void; // 新しいプロップ
 }
 
-export default function MapComponent({ userLocation, entries, error, currentUserId, onDelete }: MapComponentProps) {
+export default function MapComponent({ userLocation, entries, error, currentUserId, onDelete, onBoundsChange }: MapComponentProps) {
   // Fix for default marker icon issue with Webpack - runs only on client
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -73,15 +79,77 @@ export default function MapComponent({ userLocation, entries, error, currentUser
     });
   }, []);
 
+  const featureGroupRef = useRef<L.FeatureGroup>(null); // FeatureGroupのrefを作成
+
+  const handleDrawCreated = (e: any) => {
+    const type = e.layerType;
+    const layer = e.layer;
+
+    if (type === 'rectangle') {
+      const bounds = layer.getBounds();
+      onBoundsChange({
+        minLat: bounds.getSouthWest().lat,
+        maxLat: bounds.getNorthEast().lat,
+        minLng: bounds.getSouthWest().lng,
+        maxLng: bounds.getNorthEast().lng,
+      });
+    } else if (type === 'circle') { // 円形描画の処理を追加
+      const center = layer.getLatLng();
+      const radius = layer.getRadius(); // meters
+      // Convert radius to degrees for approximate bounding box or pass directly to API
+      // For simplicity, we'll pass center and radius to API
+      onBoundsChange({
+        minLat: center.lat - (radius / 111111), // Approximate degree conversion
+        maxLat: center.lat + (radius / 111111),
+        minLng: center.lng - (radius / (111111 * Math.cos(center.lat * Math.PI / 180))),
+        maxLng: center.lng + (radius / (111111 * Math.cos(center.lat * Math.PI / 180))),
+      });
+    }
+    
+    // Clear previous drawings from the FeatureGroup
+    if (featureGroupRef.current) {
+      featureGroupRef.current.clearLayers();
+      featureGroupRef.current.addLayer(layer); // 描画されたレイヤーをFeatureGroupに追加
+    }
+  };
+
+  const handleDrawDeleted = (e: any) => {
+    if (featureGroupRef.current) {
+      featureGroupRef.current.clearLayers();
+    }
+    onBoundsChange(null); // Clear bounds when drawing is deleted
+  };
 
   return (
     <main className="flex-grow relative">
-      <MapContainer key={userLocation.toString()} center={userLocation} zoom={13} scrollWheelZoom={true} style={{ height: 'calc(100vh - 100px)', width: '100%' }}>
+      <MapContainer center={userLocation} zoom={13} scrollWheelZoom={true} style={{ height: 'calc(100vh - 100px)', width: '100%' }}> {/* key={userLocation.toString()} を削除 */}
         <MapContentUpdater center={userLocation} />
         <TileLayer
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
         />
+        <FeatureGroup ref={featureGroupRef}> {/* refをFeatureGroupに渡す */}
+          <EditControl
+            position="topright"
+            onCreated={handleDrawCreated}
+            onDeleted={handleDrawDeleted}
+            draw={{
+              rectangle: false, // 四角形描画を無効化
+              polygon: false,
+              polyline: false,
+              circle: true, // 円形描画を有効化
+              marker: false,
+              circlemarker: false,
+              repeatMode: false, // これを追加
+            }}
+            edit={{
+              edit: false, // 編集機能を無効化
+              remove: true, // 削除機能を有効化
+              poly: false,
+              featureGroup: featureGroupRef.current || undefined, // featureGroupRefを渡す
+            }}
+          />
+        </FeatureGroup>
         {entries.map((entry) => (
           <Marker 
             key={entry.id} 
@@ -95,14 +163,14 @@ export default function MapComponent({ userLocation, entries, error, currentUser
                   <img src={entry.imageUrl} alt={entry.title} className="w-full h-32 object-cover rounded-md mb-2" />
                 )}
                 {/* Conditionally display description and public status */}
-                {entry.isPublic ? ( // If public, show all details
+                {entry.privacyLevel === 'PUBLIC' ? ( // If public, show all details
                   <>
                     <p className="text-gray-700 text-sm mb-1">{entry.description || '説明なし'}</p>
                     <p className="text-gray-500 text-xs">発見日時: {new Date(entry.takenAt).toLocaleString()}</p>
-                    <p className="text-gray-500 text-xs">公開: {entry.isPublic ? 'はい' : 'いいえ'}</p>
+                    <p className="text-gray-500 text-xs">公開レベル: {entry.privacyLevel === 'PRIVATE' ? '非公開' : entry.privacyLevel === 'FRIENDS_ONLY' ? 'フレンドのみ' : '公開'}</p>
                   </>
-                ) : ( // If private, show limited details (only title and image are already shown above)
-                  <p className="text-gray-500 text-xs">非公開</p>
+                ) : ( // If private or friends-only, show limited details
+                  <p className="text-gray-500 text-xs">公開レベル: {entry.privacyLevel === 'PRIVATE' ? '非公開' : 'フレンドのみ'}</p>
                 )}
                 {currentUserId === entry.userId && (
                   <div className="mt-2 flex space-x-2">

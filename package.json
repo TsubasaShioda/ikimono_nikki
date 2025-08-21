@@ -13,10 +13,12 @@
     "@types/lodash": "^4.17.20",
     "bcryptjs": "^2.4.3",
     "jose": "^5.2.4",
+    "leaflet-draw": "^1.0.4",
     "lodash": "^4.17.21",
     "next": "15.4.6",
     "react": "19.1.0",
-    "react-dom": "19.1.0"
+    "react-dom": "19.1.0",
+    "react-leaflet-draw": "^0.20.6"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",
