@@ -19,10 +19,15 @@ interface DiaryEntry {
   imageUrl: string | null;
   latitude: number;
   longitude: number;
-  privacyLevel: 'PRIVATE' | 'FRIENDS_ONLY' | 'PUBLIC'; // Use PrivacyLevel enum
+  privacyLevel: 'PRIVATE' | 'FRIENDS_ONLY' | 'PUBLIC';
   takenAt: string;
   createdAt: string;
-  userId: string; // Ensure userId is part of the interface
+  userId: string;
+  user: { // Add user details
+    id: string;
+    username: string;
+    iconUrl: string | null;
+  };
 }
 
 interface CurrentUser {
@@ -49,6 +54,7 @@ export default function HomePage() {
   const [selectedBounds, setSelectedBounds] = useState<{ minLat: number; maxLat: number; minLng: number; maxLng: number } | null>(null); // エリア選択のstate
   const [startDate, setStartDate] = useState<string>(''); // 開始日のstate
   const [endDate, setEndDate] = useState<string>('');     // 終了日のstate
+  const [timeOfDay, setTimeOfDay] = useState<string>('all'); // 時間帯のstateを追加
   const router = useRouter();
 
   useEffect(() => {
@@ -123,13 +129,12 @@ export default function HomePage() {
   // Fetch diary entries based on search query or all entries
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const fetchEntries = useCallback(
-    debounce(async (query: string, categoryId: string, bounds: typeof selectedBounds, startDate: string, endDate: string) => {
+    debounce(async (query: string, categoryId: string, bounds: typeof selectedBounds, startDate: string, endDate: string, time: string) => {
       if (!isClient || currentUser === undefined) return;
 
       setSearchLoading(true); // 検索中はsearchLoadingをtrueに
       setError('');
       try {
-        let url = '/api/entries';
         const params = new URLSearchParams();
         if (query) {
           params.append('q', query);
@@ -149,11 +154,11 @@ export default function HomePage() {
         if (endDate) {
           params.append('endDate', endDate);
         }
-
-        if (params.toString()) {
-          url = `/api/entries/search?${params.toString()}`;
+        if (time && time !== 'all') { // 時間帯パラメータを追加
+          params.append('timeOfDay', time);
         }
 
+        const url = `/api/entries/search?${params.toString()}`;
         const response = await fetch(url);
         const data = await response.json();
 
@@ -174,8 +179,8 @@ export default function HomePage() {
   );
 
   useEffect(() => {
-    fetchEntries(searchQuery, selectedCategoryId, selectedBounds, startDate, endDate);
-  }, [searchQuery, selectedCategoryId, selectedBounds, startDate, endDate, fetchEntries]);
+    fetchEntries(searchQuery, selectedCategoryId, selectedBounds, startDate, endDate, timeOfDay);
+  }, [searchQuery, selectedCategoryId, selectedBounds, startDate, endDate, timeOfDay, fetchEntries]);
 
 
   const handleLogout = async () => {
@@ -291,6 +296,17 @@ export default function HomePage() {
               </button>
             )}
           </div>
+          {/* 時間帯選択ドロップダウンを追加 */}
+          <select
+            className="px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 text-gray-900"
+            value={timeOfDay}
+            onChange={(e) => setTimeOfDay(e.target.value)}
+          >
+            <option value="all">すべての時間帯</option>
+            <option value="morning">朝 (5:00-9:59)</option>
+            <option value="daytime">昼 (10:00-15:59)</option>
+            <option value="night">夜 (16:00-4:59)</option>
+          </select>
           <Link href="/entries/new" className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700">
             新しい日記を投稿
           </Link>

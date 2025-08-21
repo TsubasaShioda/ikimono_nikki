@@ -31,8 +31,9 @@ export async function GET(request: Request) {
     const maxLat = searchParams.get('maxLat');
     const minLng = searchParams.get('minLng');
     const maxLng = searchParams.get('maxLng');
-    const startDate = searchParams.get('startDate'); // startDateを取得
-    const endDate = searchParams.get('endDate');     // endDateを取得
+    const startDate = searchParams.get('startDate');
+    const endDate = searchParams.get('endDate');
+    const timeOfDay = searchParams.get('timeOfDay'); // 'morning', 'daytime', 'night'
 
     // Get friend IDs for the current user
     const friendships = await prisma.friendship.findMany({
@@ -99,18 +100,50 @@ export async function GET(request: Request) {
     if (startDate || endDate) {
       const takenAtCondition: any = {};
       if (startDate) {
-        takenAtCondition.gte = new Date(startDate);
+        const start = new Date(startDate);
+        start.setHours(0, 0, 0, 0);
+        takenAtCondition.gte = start;
       }
       if (endDate) {
-        takenAtCondition.lte = new Date(endDate);
+        const end = new Date(endDate);
+        end.setHours(23, 59, 59, 999);
+        takenAtCondition.lte = end;
       }
       whereConditions.AND.push({ takenAt: takenAtCondition });
     }
 
-    const entries = await prisma.diaryEntry.findMany({
+    let entries = await prisma.diaryEntry.findMany({
       where: whereConditions,
       orderBy: { createdAt: 'desc' },
+      include: { // Include user info
+        user: {
+          select: {
+            id: true,
+            username: true,
+            iconUrl: true,
+          }
+        }
+      }
     });
+
+    // Add time of day filtering if specified
+    if (timeOfDay && timeOfDay !== 'all') {
+      entries = entries.filter(entry => {
+        const jstDate = new Date(new Date(entry.takenAt).toLocaleString('en-US', { timeZone: 'Asia/Tokyo' }));
+        const hour = jstDate.getHours();
+        
+        switch (timeOfDay) {
+          case 'morning': // 5:00 - 9:59
+            return hour >= 5 && hour < 10;
+          case 'daytime': // 10:00 - 15:59
+            return hour >= 10 && hour < 16;
+          case 'night': // 16:00 - 4:59
+            return hour >= 16 || hour < 5;
+          default:
+            return true;
+        }
+      });
+    }
 
     return NextResponse.json({ entries }, { status: 200 });
   } catch (error) {
