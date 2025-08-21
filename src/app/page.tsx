@@ -4,12 +4,13 @@ import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import dynamic from 'next/dynamic';
-import { debounce } from 'lodash'; // lodashのdebounceをインポート
+import { debounce } from 'lodash';
+import FilterSidebar from '../components/FilterSidebar'; // Import the sidebar
 
 // Dynamically import MapComponent
 const MapComponent = dynamic(
   () => import('../components/MapComponent'),
-  { ssr: false } // Disable server-side rendering
+  { ssr: false }
 );
 
 interface DiaryEntry {
@@ -35,33 +36,33 @@ interface CurrentUser {
   iconUrl: string | null;
 }
 
-interface Category {
-  id: string;
-  name: string;
-}
-
 export default function HomePage() {
   const [entries, setEntries] = useState<DiaryEntry[]>([]);
-  const [initialLoading, setInitialLoading] = useState(true); // 初回読み込み用
-  const [searchLoading, setSearchLoading] = useState(false); // 検索中用
+  const [initialLoading, setInitialLoading] = useState(true);
+  const [searchLoading, setSearchLoading] = useState(false);
   const [error, setError] = useState('');
   const [userLocation, setUserLocation] = useState<[number, number] | null>(null);
   const [isClient, setIsClient] = useState(false);
   const [currentUser, setCurrentUser] = useState<CurrentUser | null>(null);
-  const [searchQuery, setSearchQuery] = useState(''); // 検索クエリのstate
-  const [categories, setCategories] = useState<Category[]>([]); // カテゴリ一覧のstate
-  const [selectedCategoryId, setSelectedCategoryId] = useState(''); // 選択されたカテゴリIDのstate
-  const [selectedBounds, setSelectedBounds] = useState<{ minLat: number; maxLat: number; minLng: number; maxLng: number } | null>(null); // エリア選択のstate
-  const [startDate, setStartDate] = useState<string>(''); // 開始日のstate
-  const [endDate, setEndDate] = useState<string>('');     // 終了日のstate
-  const [timeOfDay, setTimeOfDay] = useState<string>('all'); // 時間帯のstateを追加
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+
+  // Unified filter state
+  const [filters, setFilters] = useState({
+    q: '',
+    categoryId: '',
+    startDate: '',
+    endDate: '',
+    timeOfDay: 'all',
+    bounds: null as { minLat: number; maxLat: number; minLng: number; maxLng: number } | null,
+  });
+
   const router = useRouter();
 
   useEffect(() => {
     setIsClient(true);
   }, []);
 
-  // Fetch current user info (ID and icon)
+  // Fetch current user
   useEffect(() => {
     if (isClient) {
       const fetchCurrentUser = async () => {
@@ -70,16 +71,11 @@ export default function HomePage() {
           if (response.ok) {
             const data = await response.json();
             setCurrentUser(data.user);
-          } else {
-            setCurrentUser(null);
-            // If not authenticated, redirect to login
-            if (response.status === 401) {
-              router.push('/auth/login');
-            }
+          } else if (response.status === 401) {
+            router.push('/auth/login');
           }
         } catch (err) {
-          console.error('FRONTEND DEBUG: Failed to fetch current user:', err);
-          setCurrentUser(null);
+          console.error('Failed to fetch current user:', err);
         }
       };
       fetchCurrentUser();
@@ -93,95 +89,78 @@ export default function HomePage() {
         (position) => {
           setUserLocation([position.coords.latitude, position.coords.longitude]);
         },
-        (err) => {
-          console.error('Geolocation error:', err);
-          setError('現在地を取得できませんでした。デフォルトの位置を表示します。');
+        () => {
+          setError('現在地を取得できませんでした。');
           setUserLocation([35.6895, 139.6917]); // Default to Tokyo
-        },
-        { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 }
+        }
       );
     } else if (isClient) {
-      setError('お使いのブラウザは位置情報に対応していません。デフォルトの位置を表示します。');
+      setError('お使いのブラウザは位置情報に対応していません。');
       setUserLocation([35.6895, 139.6917]); // Default to Tokyo
     }
   }, [isClient]);
 
-  // Fetch categories
-  useEffect(() => {
-    if (isClient) {
-      const fetchCategories = async () => {
-        try {
-          const response = await fetch('/api/categories');
-          const data = await response.json();
-          if (response.ok) {
-            setCategories(data.categories);
-          } else {
-            console.error('Failed to fetch categories:', data.message);
-          }
-        } catch (err) {
-          console.error('Error fetching categories:', err);
-        }
-      };
-      fetchCategories();
-    }
-  }, [isClient]);
+  // Fetch entries based on the unified filters state
+  const fetchEntries = useCallback(debounce(async (currentFilters: typeof filters) => {
+    if (!isClient || currentUser === undefined) return;
 
-  // Fetch diary entries based on search query or all entries
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  const fetchEntries = useCallback(
-    debounce(async (query: string, categoryId: string, bounds: typeof selectedBounds, startDate: string, endDate: string, time: string) => {
-      if (!isClient || currentUser === undefined) return;
-
-      setSearchLoading(true); // 検索中はsearchLoadingをtrueに
-      setError('');
-      try {
-        const params = new URLSearchParams();
-        if (query) {
-          params.append('q', query);
-        }
-        if (categoryId) {
-          params.append('categoryId', categoryId);
-        }
-        if (bounds) {
-          params.append('minLat', bounds.minLat.toString());
-          params.append('maxLat', bounds.maxLat.toString());
-          params.append('minLng', bounds.minLng.toString());
-          params.append('maxLng', bounds.maxLng.toString());
-        }
-        if (startDate) {
-          params.append('startDate', startDate);
-        }
-        if (endDate) {
-          params.append('endDate', endDate);
-        }
-        if (time && time !== 'all') { // 時間帯パラメータを追加
-          params.append('timeOfDay', time);
-        }
-
-        const url = `/api/entries/search?${params.toString()}`;
-        const response = await fetch(url);
-        const data = await response.json();
-
-        if (response.ok) {
-          setEntries(data.entries);
-        } else {
-          setError(data.message || '日記の取得に失敗しました。');
-        }
-      } catch (err) {
-        console.error('FRONTEND DEBUG: Fetch entries error:', err);
-        setError('日記の取得中に予期せぬエラーが発生しました。');
-      } finally {
-        setSearchLoading(false); // 検索終了後はsearchLoadingをfalseに
-        setInitialLoading(false); // 初回読み込みも完了
+    setSearchLoading(true);
+    setError('');
+    try {
+      const params = new URLSearchParams();
+      if (currentFilters.q) params.append('q', currentFilters.q);
+      if (currentFilters.categoryId) params.append('categoryId', currentFilters.categoryId);
+      if (currentFilters.startDate) params.append('startDate', currentFilters.startDate);
+      if (currentFilters.endDate) params.append('endDate', currentFilters.endDate);
+      if (currentFilters.timeOfDay && currentFilters.timeOfDay !== 'all') {
+        params.append('timeOfDay', currentFilters.timeOfDay);
       }
-    }, 300), // 300ms debounce
-    [isClient, currentUser] // Dependencies for useCallback
-  );
+      if (currentFilters.bounds) {
+        params.append('minLat', currentFilters.bounds.minLat.toString());
+        params.append('maxLat', currentFilters.bounds.maxLat.toString());
+        params.append('minLng', currentFilters.bounds.minLng.toString());
+        params.append('maxLng', currentFilters.bounds.maxLng.toString());
+      }
 
+      const url = `/api/entries/search?${params.toString()}`;
+      const response = await fetch(url);
+      const data = await response.json();
+
+      if (response.ok) {
+        setEntries(data.entries);
+      } else {
+        setError(data.message || '日記の取得に失敗しました。');
+      }
+    } catch (err) {
+      console.error('Fetch entries error:', err);
+      setError('日記の取得中に予期せぬエラーが発生しました。');
+    } finally {
+      setSearchLoading(false);
+      setInitialLoading(false);
+    }
+  }, 500), [isClient, currentUser]);
+
+  // Trigger fetchEntries when filters change
   useEffect(() => {
-    fetchEntries(searchQuery, selectedCategoryId, selectedBounds, startDate, endDate, timeOfDay);
-  }, [searchQuery, selectedCategoryId, selectedBounds, startDate, endDate, timeOfDay, fetchEntries]);
+    if(currentUser !== undefined) {
+        fetchEntries(filters);
+    }
+  }, [filters, currentUser, fetchEntries]);
 
+  const handleApplyFilters = (newFilters: Partial<typeof filters>) => {
+    setFilters(prevFilters => ({
+      ...prevFilters,
+      ...newFilters,
+    }));
+  };
+  
+  const handleBoundsChange = (bounds: any) => {
+      setFilters(prev => ({ ...prev, bounds }));
+  };
+
+  const handleResetBounds = () => {
+      setFilters(prev => ({ ...prev, bounds: null }));
+  };
 
   const handleLogout = async () => {
     try {
@@ -222,91 +201,21 @@ export default function HomePage() {
     }
   };
 
-  const handleResetBounds = () => {
-    setSelectedBounds(null);
-  };
-
-  const handleResetDates = () => {
-    setStartDate('');
-    setEndDate('');
-  };
-
-  if (!isClient || initialLoading || userLocation === null) { // initialLoadingを使用
+  if (!isClient || initialLoading || userLocation === null) {
     return <div className="min-h-screen flex items-center justify-center">地図を読み込み中...</div>;
-  }
-
-  if (error) {
-    return <div className="min-h-screen flex items-center justify-center text-red-500">エラー: {error}</div>;
   }
 
   return (
     <div className="min-h-screen bg-gray-100 flex flex-col">
-      <header className="flex justify-between items-center py-4 px-6 bg-white shadow-md rounded-b-lg mb-4">
+      <header className="flex justify-between items-center py-4 px-6 bg-white shadow-md z-30">
         <h1 className="text-3xl font-bold text-gray-900">生き物日記マップ</h1>
         <nav className="flex items-center space-x-4">
-          <div className="relative flex items-center"> {/* 検索バーとローディングスピナーを囲む */}
-            <input
-              type="search"
-              placeholder="日記を検索..."
-              className="px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 text-gray-900 pr-10" // 右側にパディングを追加
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-            />
-            {searchLoading && ( // 検索中のスピナー
-              <svg className="animate-spin h-5 w-5 text-gray-500 absolute right-3" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-              </svg>
-            )}
-          </div>
-          {/* カテゴリ選択ドロップダウン */}
-          <select
-            className="px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 text-gray-900"
-            value={selectedCategoryId}
-            onChange={(e) => setSelectedCategoryId(e.target.value)}
+          <button
+            onClick={() => setIsSidebarOpen(true)}
+            className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
           >
-            <option value="">すべてのカテゴリ</option>
-            {categories.map((category) => (
-              <option key={category.id} value={category.id}>
-                {category.name}
-              </option>
-            ))}
-          </select>
-          {/* 日付範囲選択 */}
-          <div className="flex items-center space-x-2">
-            <input
-              type="date"
-              className="px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 text-gray-900"
-              value={startDate}
-              onChange={(e) => setStartDate(e.target.value)}
-            />
-            <span>〜</span>
-            <input
-              type="date"
-              className="px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:focus:border-indigo-500 text-gray-900"
-              value={endDate}
-              onChange={(e) => setEndDate(e.target.value)}
-            />
-            {(startDate || endDate) && (
-              <button
-                onClick={handleResetDates}
-                className="px-3 py-2 bg-gray-300 text-gray-700 rounded-md hover:bg-gray-400 text-sm"
-              >
-                日付解除
-              </button>
-            )}
-          </div>
-          {/* 時間帯選択ドロップダウンを追加 */}
-          <select
-            className="px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 text-gray-900"
-            value={timeOfDay}
-            onChange={(e) => setTimeOfDay(e.target.value)}
-          >
-            <option value="all">すべての時間帯</option>
-            <option value="morning">朝 (5:00-9:59)</option>
-            <option value="daytime">昼 (10:00-15:59)</option>
-            <option value="night">夜 (16:00-4:59)</option>
-          </select>
+            フィルター
+          </button>
           <Link href="/entries/new" className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700">
             新しい日記を投稿
           </Link>
@@ -316,7 +225,6 @@ export default function HomePage() {
           <Link href="/friends" className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700">
             フレンド管理
           </Link>
-          
           {currentUser && (
             <Link href="/settings" className="w-10 h-10 rounded-full overflow-hidden bg-gray-200 flex items-center justify-center hover:opacity-80 transition-opacity">
               {currentUser.iconUrl ? (
@@ -326,27 +234,58 @@ export default function HomePage() {
               )}
             </Link>
           )}
-
-          <button
-            onClick={handleLogout}
-            className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700"
-          >
+          <button onClick={handleLogout} className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700">
             ログアウト
           </button>
         </nav>
       </header>
 
-      <MapComponent userLocation={userLocation} entries={entries} error={error} currentUserId={currentUser?.id || null} onDelete={handleDelete} onBoundsChange={setSelectedBounds} />
-      {selectedBounds && (
-        <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 z-100"> {/* z-indexをz-100に変更 */}
-          <button
-            onClick={handleResetBounds}
-            className="px-4 py-2 bg-blue-500 text-white rounded-md shadow-lg hover:bg-blue-600"
-          >
-            エリア選択を解除
-          </button>
-        </div>
-      )}
+      {/* Main content area */}
+      <main className="flex-grow relative z-10" style={{ height: 'calc(100vh - 88px)' }}>
+        {/* Map Component takes up the full space */}
+        <MapComponent 
+            userLocation={userLocation} 
+            entries={entries} 
+            error={error} 
+            currentUserId={currentUser?.id || null} 
+            onDelete={handleDelete} 
+            onBoundsChange={handleBoundsChange} 
+        />
+        
+        {/* Area selection reset button */}
+        {filters.bounds && (
+          <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 z-10">
+            <button
+              onClick={handleResetBounds}
+              className="px-4 py-2 bg-blue-500 text-white rounded-md shadow-lg hover:bg-blue-600"
+            >
+              エリア選択を解除
+            </button>
+          </div>
+        )}
+
+        {/* Loading indicator */}
+        {searchLoading && (
+            <div className="absolute top-4 left-1/2 transform -translate-x-1/2 z-10 bg-white px-4 py-2 rounded-md shadow-lg">
+                <div className="flex items-center space-x-2">
+                    <svg className="animate-spin h-5 w-5 text-gray-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    <span>検索中...</span>
+                </div>
+            </div>
+        )}
+      </main>
+
+      {/* Sidebar and overlay */}
+      <FilterSidebar 
+        isSidebarOpen={isSidebarOpen}
+        onClose={() => setIsSidebarOpen(false)}
+        onApplyFilters={handleApplyFilters}
+        initialFilters={filters}
+      />
+      {isSidebarOpen && <div className="fixed inset-0 bg-black opacity-50 z-40" onClick={() => setIsSidebarOpen(false)}></div>}
     </div>
   );
 }

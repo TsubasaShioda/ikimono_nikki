@@ -26,10 +26,15 @@ interface DiaryEntry {
   imageUrl: string | null;
   latitude: number;
   longitude: number;
-  privacyLevel: 'PRIVATE' | 'FRIENDS_ONLY' | 'PUBLIC'; // Use PrivacyLevel enum
+  privacyLevel: 'PRIVATE' | 'FRIENDS_ONLY' | 'PUBLIC';
   takenAt: string;
   createdAt: string;
   userId: string;
+  user: { // Add user details to match page.tsx
+    id: string;
+    username: string;
+    iconUrl: string | null;
+  };
 }
 
 interface MapComponentProps {
@@ -121,8 +126,8 @@ export default function MapComponent({ userLocation, entries, error, currentUser
   };
 
   return (
-    <main className="flex-grow relative">
-      <MapContainer center={userLocation} zoom={13} scrollWheelZoom={true} style={{ height: 'calc(100vh - 100px)', width: '100%' }}> {/* key={userLocation.toString()} を削除 */}
+    <div className="h-full w-full">
+      <MapContainer center={userLocation} zoom={13} scrollWheelZoom={true} style={{ height: '100%', width: '100%' }}>
         <MapContentUpdater center={userLocation} />
         <TileLayer
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
@@ -190,6 +195,6 @@ export default function MapComponent({ userLocation, entries, error, currentUser
           </Marker>
         ))}
       </MapContainer>
-    </main>
+    </div>
   );
 }
