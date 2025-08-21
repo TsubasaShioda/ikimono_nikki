@@ -31,6 +31,8 @@ export async function GET(request: Request) {
     const maxLat = searchParams.get('maxLat');
     const minLng = searchParams.get('minLng');
     const maxLng = searchParams.get('maxLng');
+    const startDate = searchParams.get('startDate'); // startDateを取得
+    const endDate = searchParams.get('endDate');     // endDateを取得
 
     // Get friend IDs for the current user
     const friendships = await prisma.friendship.findMany({
@@ -91,6 +93,18 @@ export async function GET(request: Request) {
           lte: parseFloat(maxLng),
         },
       });
+    }
+
+    // Add date range filters
+    if (startDate || endDate) {
+      const takenAtCondition: any = {};
+      if (startDate) {
+        takenAtCondition.gte = new Date(startDate);
+      }
+      if (endDate) {
+        takenAtCondition.lte = new Date(endDate);
+      }
+      whereConditions.AND.push({ takenAt: takenAtCondition });
     }
 
     const entries = await prisma.diaryEntry.findMany({

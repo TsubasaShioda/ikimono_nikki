@@ -47,6 +47,8 @@ export default function HomePage() {
   const [categories, setCategories] = useState<Category[]>([]); // カテゴリ一覧のstate
   const [selectedCategoryId, setSelectedCategoryId] = useState(''); // 選択されたカテゴリIDのstate
   const [selectedBounds, setSelectedBounds] = useState<{ minLat: number; maxLat: number; minLng: number; maxLng: number } | null>(null); // エリア選択のstate
+  const [startDate, setStartDate] = useState<string>(''); // 開始日のstate
+  const [endDate, setEndDate] = useState<string>('');     // 終了日のstate
   const router = useRouter();
 
   useEffect(() => {
@@ -121,7 +123,7 @@ export default function HomePage() {
   // Fetch diary entries based on search query or all entries
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const fetchEntries = useCallback(
-    debounce(async (query: string, categoryId: string, bounds: typeof selectedBounds) => {
+    debounce(async (query: string, categoryId: string, bounds: typeof selectedBounds, startDate: string, endDate: string) => {
       if (!isClient || currentUser === undefined) return;
 
       setSearchLoading(true); // 検索中はsearchLoadingをtrueに
@@ -141,6 +143,12 @@ export default function HomePage() {
           params.append('minLng', bounds.minLng.toString());
           params.append('maxLng', bounds.maxLng.toString());
         }
+        if (startDate) {
+          params.append('startDate', startDate);
+        }
+        if (endDate) {
+          params.append('endDate', endDate);
+        }
 
         if (params.toString()) {
           url = `/api/entries/search?${params.toString()}`;
@@ -157,8 +165,7 @@ export default function HomePage() {
       } catch (err) {
         console.error('FRONTEND DEBUG: Fetch entries error:', err);
         setError('日記の取得中に予期せぬエラーが発生しました。');
-      }
-      finally {
+      } finally {
         setSearchLoading(false); // 検索終了後はsearchLoadingをfalseに
         setInitialLoading(false); // 初回読み込みも完了
       }
@@ -167,8 +174,8 @@ export default function HomePage() {
   );
 
   useEffect(() => {
-    fetchEntries(searchQuery, selectedCategoryId, selectedBounds);
-  }, [searchQuery, selectedCategoryId, selectedBounds, fetchEntries]);
+    fetchEntries(searchQuery, selectedCategoryId, selectedBounds, startDate, endDate);
+  }, [searchQuery, selectedCategoryId, selectedBounds, startDate, endDate, fetchEntries]);
 
 
   const handleLogout = async () => {
@@ -214,6 +221,11 @@ export default function HomePage() {
     setSelectedBounds(null);
   };
 
+  const handleResetDates = () => {
+    setStartDate('');
+    setEndDate('');
+  };
+
   if (!isClient || initialLoading || userLocation === null) { // initialLoadingを使用
     return <div className="min-h-screen flex items-center justify-center">地図を読み込み中...</div>;
   }
@@ -255,6 +267,30 @@ export default function HomePage() {
               </option>
             ))}
           </select>
+          {/* 日付範囲選択 */}
+          <div className="flex items-center space-x-2">
+            <input
+              type="date"
+              className="px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 text-gray-900"
+              value={startDate}
+              onChange={(e) => setStartDate(e.target.value)}
+            />
+            <span>〜</span>
+            <input
+              type="date"
+              className="px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:focus:border-indigo-500 text-gray-900"
+              value={endDate}
+              onChange={(e) => setEndDate(e.target.value)}
+            />
+            {(startDate || endDate) && (
+              <button
+                onClick={handleResetDates}
+                className="px-3 py-2 bg-gray-300 text-gray-700 rounded-md hover:bg-gray-400 text-sm"
+              >
+                日付解除
+              </button>
+            )}
+          </div>
           <Link href="/entries/new" className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700">
             新しい日記を投稿
           </Link>
