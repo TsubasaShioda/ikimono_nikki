@@ -71,16 +71,19 @@ export default function HomePage() {
           if (response.ok) {
             const data = await response.json();
             setCurrentUser(data.user);
-          } else if (response.status === 401) {
-            router.push('/auth/login');
+          } else {
+            // 401 Unauthorized or other errors mean the user is not logged in.
+            // This is an expected state for guests, so we just clear the user state.
+            setCurrentUser(null);
           }
         } catch (err) {
           console.error('Failed to fetch current user:', err);
+          setCurrentUser(null);
         }
       };
       fetchCurrentUser();
     }
-  }, [isClient, router]);
+  }, [isClient]);
 
   // Fetch user location
   useEffect(() => {
@@ -102,7 +105,8 @@ export default function HomePage() {
 
   // Fetch entries based on the unified filters state
   const fetchEntries = useCallback(debounce(async (currentFilters: typeof filters) => {
-    if (!isClient || currentUser === undefined) return;
+    // currentUserがundefinedの間は実行しない
+    if (!isClient) return;
 
     setSearchLoading(true);
     setError('');
@@ -138,14 +142,12 @@ export default function HomePage() {
       setSearchLoading(false);
       setInitialLoading(false);
     }
-  }, 500), [isClient, currentUser]);
+  }, 500), [isClient]);
 
   // Trigger fetchEntries when filters change
   useEffect(() => {
-    if(currentUser !== undefined) {
-        fetchEntries(filters);
-    }
-  }, [filters, currentUser, fetchEntries]);
+    fetchEntries(filters);
+  }, [filters, fetchEntries]);
 
   const handleApplyFilters = (newFilters: Partial<typeof filters>) => {
     setFilters(prevFilters => ({
@@ -169,7 +171,9 @@ export default function HomePage() {
       });
 
       if (response.ok) {
-        router.push('/auth/login');
+        setCurrentUser(null); // Update UI immediately
+        // Optionally, re-fetch entries for guest view
+        fetchEntries(filters);
       } else {
         alert('ログアウトに失敗しました。');
       }
@@ -216,27 +220,39 @@ export default function HomePage() {
           >
             フィルター
           </button>
-          <Link href="/entries/new" className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700">
-            新しい日記を投稿
-          </Link>
-          <Link href="/entries/my" className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700">
-            自分の日記
-          </Link>
-          <Link href="/friends" className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700">
-            フレンド管理
-          </Link>
-          {currentUser && (
-            <Link href="/settings" className="w-10 h-10 rounded-full overflow-hidden bg-gray-200 flex items-center justify-center hover:opacity-80 transition-opacity">
-              {currentUser.iconUrl ? (
-                <img src={currentUser.iconUrl} alt="プロフィールアイコン" className="w-full h-full object-cover" />
-              ) : (
-                <svg className="w-8 h-8 text-gray-500" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd"></path></svg>
-              )}
-            </Link>
+
+          {currentUser ? (
+            <>
+              <Link href="/entries/new" className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700">
+                新しい日記を投稿
+              </Link>
+              <Link href="/entries/my" className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700">
+                自分の日記
+              </Link>
+              <Link href="/friends" className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700">
+                フレンド管理
+              </Link>
+              <Link href="/settings" className="w-10 h-10 rounded-full overflow-hidden bg-gray-200 flex items-center justify-center hover:opacity-80 transition-opacity">
+                {currentUser.iconUrl ? (
+                  <img src={currentUser.iconUrl} alt="プロフィールアイコン" className="w-full h-full object-cover" />
+                ) : (
+                  <img src="/default-avatar.svg" alt="デフォルトアイコン" className="w-full h-full object-cover" />
+                )}
+              </Link>
+              <button onClick={handleLogout} className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700">
+                ログアウト
+              </button>
+            </>
+          ) : (
+            <>
+              <Link href="/auth/login" className="px-4 py-2 text-gray-600 hover:text-gray-900 border border-gray-300 rounded-md">
+                ログイン
+              </Link>
+              <Link href="/auth/register" className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700">
+                新規登録
+              </Link>
+            </>
           )}
-          <button onClick={handleLogout} className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700">
-            ログアウト
-          </button>
         </nav>
       </header>
 

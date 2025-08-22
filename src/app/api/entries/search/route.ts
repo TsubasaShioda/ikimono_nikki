@@ -19,10 +19,7 @@ async function getUserIdFromToken(request: Request): Promise<string | null> {
 
 export async function GET(request: Request) {
   try {
-    const userId = await getUserIdFromToken(request);
-    if (!userId) {
-      return NextResponse.json({ message: '認証が必要です' }, { status: 401 });
-    }
+    const userId = await getUserIdFromToken(request); // ゲストの場合はnullになります
 
     const { searchParams } = new URL(request.url);
     const query = searchParams.get('q');
@@ -33,41 +30,45 @@ export async function GET(request: Request) {
     const maxLng = searchParams.get('maxLng');
     const startDate = searchParams.get('startDate');
     const endDate = searchParams.get('endDate');
-    const timeOfDay = searchParams.get('timeOfDay'); // 'morning', 'daytime', 'night'
-
-    // Get friend IDs for the current user
-    const friendships = await prisma.friendship.findMany({
-      where: {
-        status: 'ACCEPTED',
-        OR: [
-          { requesterId: userId },
-          { addresseeId: userId },
-        ],
-      },
-      select: {
-        requesterId: true,
-        addresseeId: true,
-      },
-    });
-
-    const friendIds = friendships.map(f => 
-      f.requesterId === userId ? f.addresseeId : f.requesterId
-    );
+    const timeOfDay = searchParams.get('timeOfDay');
 
     const whereConditions: any = {
-      AND: [ // Apply privacy filters
-        {
-          OR: [
-            { privacyLevel: PrivacyLevel.PUBLIC }, // Public entries
-            { userId: userId }, // User's own entries (any privacy level)
-            { // Friends-only entries from accepted friends
-              privacyLevel: PrivacyLevel.FRIENDS_ONLY,
-              userId: { in: friendIds },
-            },
-          ],
-        },
-      ],
+      AND: [],
     };
+
+    // --- プライバシーフィルターのロジック ---
+    if (userId) {
+      // --- ログインユーザーの場合 ---
+      const friendships = await prisma.friendship.findMany({
+        where: {
+          status: 'ACCEPTED',
+          OR: [{ requesterId: userId }, { addresseeId: userId }],
+        },
+        select: {
+          requesterId: true,
+          addresseeId: true,
+        },
+      });
+      const friendIds = friendships.map(f =>
+        f.requesterId === userId ? f.addresseeId : f.requesterId
+      );
+
+      whereConditions.AND.push({
+        OR: [
+          { privacyLevel: PrivacyLevel.PUBLIC },
+          { userId: userId },
+          {
+            privacyLevel: PrivacyLevel.FRIENDS_ONLY,
+            userId: { in: friendIds },
+          },
+        ],
+      });
+    } else {
+      // --- ゲストユーザーの場合 ---
+      whereConditions.AND.push({
+        privacyLevel: PrivacyLevel.PUBLIC,
+      });
+    }
 
     if (query && query.trim() !== '') {
       whereConditions.AND.push({
@@ -82,7 +83,6 @@ export async function GET(request: Request) {
       whereConditions.AND.push({ categoryId: categoryId });
     }
 
-    // Add geographical filters
     if (minLat && maxLat && minLng && maxLng) {
       whereConditions.AND.push({
         latitude: {
@@ -96,7 +96,6 @@ export async function GET(request: Request) {
       });
     }
 
-    // Add date range filters
     if (startDate || endDate) {
       const takenAtCondition: any = {};
       if (startDate) {
@@ -115,29 +114,45 @@ export async function GET(request: Request) {
     let entries = await prisma.diaryEntry.findMany({
       where: whereConditions,
       orderBy: { createdAt: 'desc' },
-      include: { // Include user info
+      select: {
+        id: true,
+        userId: true,
+        title: true,
+        description: true,
+        imageUrl: true,
+        latitude: true,
+        longitude: true,
+        takenAt: true,
+        createdAt: true,
+        privacyLevel: true,
+        categoryId: true,
         user: {
           select: {
             id: true,
             username: true,
             iconUrl: true,
+          },
+        },
+        category: {
+          select: {
+            id: true,
+            name: true,
           }
         }
-      }
+      },
     });
 
-    // Add time of day filtering if specified
     if (timeOfDay && timeOfDay !== 'all') {
       entries = entries.filter(entry => {
         const jstDate = new Date(new Date(entry.takenAt).toLocaleString('en-US', { timeZone: 'Asia/Tokyo' }));
         const hour = jstDate.getHours();
         
         switch (timeOfDay) {
-          case 'morning': // 5:00 - 9:59
+          case 'morning':
             return hour >= 5 && hour < 10;
-          case 'daytime': // 10:00 - 15:59
+          case 'daytime':
             return hour >= 10 && hour < 16;
-          case 'night': // 16:00 - 4:59
+          case 'night':
             return hour >= 16 || hour < 5;
           default:
             return true;

@@ -167,7 +167,7 @@ export default function MapComponent({ userLocation, entries, error, currentUser
                 <div className="flex items-center mb-2 border-b pb-2">
                   <Link href={`/entries/user/${entry.user.id}`} className="flex items-center space-x-2 hover:opacity-80 transition-opacity">
                     <img 
-                      src={entry.user.iconUrl || '/default-avatar.png'} // Use a default avatar
+                      src={entry.user.iconUrl || '/default-avatar.svg'} // Use a default avatar
                       alt={entry.user.username} 
                       className="w-8 h-8 rounded-full object-cover bg-gray-200" // Added bg-gray-200 for placeholder
                     />
