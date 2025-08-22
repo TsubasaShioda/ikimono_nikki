@@ -162,25 +162,34 @@ export default function MapComponent({ userLocation, entries, error, currentUser
             icon={currentUserId === entry.userId ? myPostIcon : otherPostIcon} // Conditional icon
           >
             <Popup>
-              <div className="font-sans">
-                <h3 className="text-lg font-semibold text-gray-900 mb-1">{entry.title}</h3>
+              <div className="font-sans w-64">
+                {/* User Info */}
+                <div className="flex items-center mb-2 border-b pb-2">
+                  <Link href={`/entries/user/${entry.user.id}`} className="flex items-center space-x-2 hover:opacity-80 transition-opacity">
+                    <img 
+                      src={entry.user.iconUrl || '/default-avatar.png'} // Use a default avatar
+                      alt={entry.user.username} 
+                      className="w-8 h-8 rounded-full object-cover bg-gray-200" // Added bg-gray-200 for placeholder
+                    />
+                    <span className="font-semibold text-gray-800">{entry.user.username}</span>
+                  </Link>
+                </div>
+
+                {/* Entry Info */}
+                <h3 className="text-lg font-bold text-gray-900 mb-1">{entry.title}</h3>
                 {entry.imageUrl && (
-                  <img src={entry.imageUrl} alt={entry.title} className="w-full h-32 object-cover rounded-md mb-2" />
+                  <a href={entry.imageUrl} target="_blank" rel="noopener noreferrer">
+                    <img src={entry.imageUrl} alt={entry.title} className="w-full h-32 object-cover rounded-md mb-2 hover:opacity-90 transition-opacity" />
+                  </a>
                 )}
-                {/* Conditionally display description and public status */}
-                {entry.privacyLevel === 'PUBLIC' ? ( // If public, show all details
-                  <>
-                    <p className="text-gray-700 text-sm mb-1">{entry.description || '説明なし'}</p>
-                    <p className="text-gray-500 text-xs">発見日時: {new Date(entry.takenAt).toLocaleString()}</p>
-                    <p className="text-gray-500 text-xs">公開レベル: {entry.privacyLevel === 'PRIVATE' ? '非公開' : entry.privacyLevel === 'FRIENDS_ONLY' ? 'フレンドのみ' : '公開'}</p>
-                  </>
-                ) : ( // If private or friends-only, show limited details
-                  <p className="text-gray-500 text-xs">公開レベル: {entry.privacyLevel === 'PRIVATE' ? '非公開' : 'フレンドのみ'}</p>
-                )}
+                <p className="text-gray-700 text-sm mb-2">{entry.description || '説明なし'}</p>
+                <p className="text-gray-500 text-xs mb-1">発見日時: {new Date(entry.takenAt).toLocaleString()}</p>
+                
+                {/* Action Buttons for Owner */}
                 {currentUserId === entry.userId && (
-                  <div className="mt-2 flex space-x-2">
-                    <Link href={`/entries/edit/${entry.id}`} className="px-3 py-1 bg-indigo-600 text-white rounded-md text-sm hover:bg-indigo-700">
-                      編集
+                  <div className="mt-3 flex space-x-2">
+                    <Link href={`/entries/edit/${entry.id}`} className="px-3 py-1 bg-indigo-600 rounded-md text-sm hover:bg-indigo-700">
+                      <span className="text-white">編集</span>
                     </Link>
                     <button
                       onClick={() => onDelete(entry.id)}
