@@ -31,6 +31,7 @@ export async function GET(request: Request) {
     const startDate = searchParams.get('startDate');
     const endDate = searchParams.get('endDate');
     const timeOfDay = searchParams.get('timeOfDay');
+    const monthOnlyParam = searchParams.get('monthOnly'); // 月フィルターを複数選択可能に
 
     const whereConditions: any = {
       AND: [],
@@ -158,6 +159,17 @@ export async function GET(request: Request) {
             return true;
         }
       });
+    }
+
+    // 月フィルターを追加 (複数選択可能)
+    if (monthOnlyParam) {
+      const targetMonths = monthOnlyParam.split(',').map(month => parseInt(month.trim(), 10)).filter(month => !isNaN(month) && month >= 1 && month <= 12);
+      if (targetMonths.length > 0) {
+        entries = entries.filter(entry => {
+          const jstDate = new Date(new Date(entry.takenAt).toLocaleString('en-US', { timeZone: 'Asia/Tokyo' }));
+          return targetMonths.includes(jstDate.getMonth() + 1); // getMonth()は0-indexed
+        });
+      }
     }
 
     return NextResponse.json({ entries }, { status: 200 });

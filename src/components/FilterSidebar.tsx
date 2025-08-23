@@ -16,6 +16,7 @@ const FilterSidebar = ({ onApplyFilters, initialFilters, isSidebarOpen, onClose 
   const [startDate, setStartDate] = useState(initialFilters.startDate || '');
   const [endDate, setEndDate] = useState(initialFilters.endDate || '');
   const [timeOfDay, setTimeOfDay] = useState(initialFilters.timeOfDay || 'all');
+  const [selectedMonths, setSelectedMonths] = useState<number[]>(initialFilters.monthOnly || []); // 選択された月のstate
   const [categories, setCategories] = useState<Category[]>([]);
 
   useEffect(() => {
@@ -26,6 +27,7 @@ const FilterSidebar = ({ onApplyFilters, initialFilters, isSidebarOpen, onClose 
       setStartDate(initialFilters.startDate || '');
       setEndDate(initialFilters.endDate || '');
       setTimeOfDay(initialFilters.timeOfDay || 'all');
+      setSelectedMonths(initialFilters.monthOnly || []); // 選択された月を同期
     }
   }, [isSidebarOpen, initialFilters]);
 
@@ -51,6 +53,7 @@ const FilterSidebar = ({ onApplyFilters, initialFilters, isSidebarOpen, onClose 
       startDate,
       endDate,
       timeOfDay: timeOfDay,
+      monthOnly: selectedMonths.length > 0 ? selectedMonths : null, // 選択された月を渡す
     });
     onClose();
   };
@@ -61,15 +64,30 @@ const FilterSidebar = ({ onApplyFilters, initialFilters, isSidebarOpen, onClose 
     setStartDate('');
     setEndDate('');
     setTimeOfDay('all');
+    setSelectedMonths([]); // 選択された月をリセット
     onApplyFilters({
       q: '',
       categoryId: '',
       startDate: '',
       endDate: '',
       timeOfDay: 'all',
+      monthOnly: null,
     });
     onClose();
   };
+
+  const handleMonthChange = (month: number) => {
+    setSelectedMonths(prev => 
+      prev.includes(month) ? prev.filter(m => m !== month) : [...prev, month].sort((a, b) => a - b)
+    );
+  };
+
+  const months = [
+    { value: 1, label: '1月' }, { value: 2, label: '2月' }, { value: 3, label: '3月' },
+    { value: 4, label: '4月' }, { value: 5, label: '5月' }, { value: 6, label: '6月' },
+    { value: 7, label: '7月' }, { value: 8, label: '8月' }, { value: 9, label: '9月' },
+    { value: 10, label: '10月' }, { value: 11, label: '11月' }, { value: 12, label: '12月' },
+  ];
 
   return (
     <div className={`fixed top-0 right-0 h-full bg-white shadow-lg z-50 transform transition-transform duration-300 ease-in-out text-gray-900 ${isSidebarOpen ? 'translate-x-0' : 'translate-x-full'}`} style={{width: '320px'}}>
@@ -144,6 +162,26 @@ const FilterSidebar = ({ onApplyFilters, initialFilters, isSidebarOpen, onClose 
               <option value="daytime">昼 (10:00-15:59)</option>
               <option value="night">夜 (16:00-4:59)</option>
             </select>
+          </div>
+
+          {/* Month Only Filter (Multiple Selection) */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">月で絞り込み</label>
+            <div className="mt-1 grid grid-cols-3 gap-2 text-sm">
+              {months.map((month) => (
+                <div key={month.value} className="flex items-center">
+                  <input
+                    type="checkbox"
+                    id={`month-${month.value}`}
+                    value={month.value}
+                    checked={selectedMonths.includes(month.value)}
+                    onChange={() => handleMonthChange(month.value)}
+                    className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
+                  />
+                  <label htmlFor={`month-${month.value}`} className="ml-2 text-gray-900">{month.label}</label>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
 
