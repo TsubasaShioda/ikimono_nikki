@@ -2,20 +2,13 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { MapContainer, TileLayer, Marker, useMapEvents } from 'react-leaflet';
-import L from 'leaflet';
-import { PrivacyLevel } from '@/lib/types'; // Import enum from shared location
+import dynamic from 'next/dynamic';
+import { PrivacyLevel } from '@/lib/types';
 
-// Component to handle map clicks and update coordinates
-function MapClickHandler({ setLatitude, setLongitude }: { setLatitude: (lat: string) => void; setLongitude: (lng: string) => void }) {
-  useMapEvents({
-    click: (e) => {
-      setLatitude(e.latlng.lat.toString());
-      setLongitude(e.latlng.lng.toString());
-    },
-  });
-  return null;
-}
+const NewEntryMap = dynamic(() => import('@/components/NewEntryMap'), { 
+  ssr: false, 
+  loading: () => <p>地図を読み込み中...</p> 
+});
 
 export default function NewEntryPage() {
   const [title, setTitle] = useState('');
@@ -24,13 +17,13 @@ export default function NewEntryPage() {
   const [latitude, setLatitude] = useState('');
   const [longitude, setLongitude] = useState('');
   const [takenAt, setTakenAt] = useState('');
-  const [privacyLevel, setPrivacyLevel] = useState<PrivacyLevel>(PrivacyLevel.PRIVATE); // Changed from isPublic
+  const [privacyLevel, setPrivacyLevel] = useState<PrivacyLevel>(PrivacyLevel.PRIVATE);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [userLocation, setUserLocation] = useState<[number, number] | null>(null);
   const [isClient, setIsClient] = useState(false);
-  const [categories, setCategories] = useState<{ id: string; name: string }[]>([]); // カテゴリ一覧のstate
-  const [selectedCategoryId, setSelectedCategoryId] = useState(''); // 選択されたカテゴリIDのstate
+  const [categories, setCategories] = useState<{ id: string; name: string }[]>([]);
+  const [selectedCategoryId, setSelectedCategoryId] = useState('');
   const router = useRouter();
 
   useEffect(() => {
@@ -83,18 +76,6 @@ export default function NewEntryPage() {
     }
   }, [isClient]);
 
-  // Fix for default marker icon issue with Webpack
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      delete L.Icon.Default.prototype._getIconUrl;
-      L.Icon.Default.mergeOptions({
-        iconRetinaUrl: 'https://unpkg.com/leaflet@1.7.1/dist/images/marker-icon-2x.png',
-        iconUrl: 'https://unpkg.com/leaflet@1.7.1/dist/images/marker-icon.png',
-        shadowUrl: 'https://unpkg.com/leaflet@1.7.1/dist/images/marker-shadow.png',
-      });
-    }
-  }, []);
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
@@ -140,7 +121,7 @@ export default function NewEntryPage() {
   };
 
   if (!isClient || userLocation === null) {
-    return <div className="min-h-screen flex items-center justify-center">地図を読み込み中...</div>;
+    return <div className="min-h-screen flex items-center justify-center">ページを読み込み中...</div>;
   }
 
   return (
@@ -150,6 +131,7 @@ export default function NewEntryPage() {
         {error && <p className="text-red-500 text-center mb-4">{error}</p>}
         {success && <p className="text-green-500 text-center mb-4">{success}</p>}
         <form onSubmit={handleSubmit} className="space-y-4">
+          {/* Form fields remain the same */}
           <div>
             <label htmlFor="title" className="block text-sm font-medium text-gray-700">タイトル (必須)</label>
             <input
@@ -223,20 +205,15 @@ export default function NewEntryPage() {
               />
             </div>
           </div>
-          {userLocation && (
-            <div style={{ height: '300px', width: '100%' }}>
-              <MapContainer center={userLocation} zoom={13} scrollWheelZoom={true} style={{ height: '100%', width: '100%' }}>
-                <TileLayer
-                  attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-                  url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-                />
-                {latitude && longitude && (
-                  <Marker position={[parseFloat(latitude), parseFloat(longitude)]}></Marker>
-                )}
-                <MapClickHandler setLatitude={setLatitude} setLongitude={setLongitude} />
-              </MapContainer>
-            </div>
-          )}
+          <div style={{ height: '300px', width: '100%' }}>
+            <NewEntryMap 
+              userLocation={userLocation} 
+              latitude={latitude} 
+              longitude={longitude} 
+              setLatitude={setLatitude} 
+              setLongitude={setLongitude} 
+            />
+          </div>
           <div>
             <label htmlFor="takenAt" className="block text-sm font-medium text-gray-700">発見日時 (必須)</label>
             <input
@@ -248,7 +225,6 @@ export default function NewEntryPage() {
               required
             />
           </div>
-          {/* Changed from checkbox to radio buttons */}
           <div>
             <label className="block text-sm font-medium text-gray-700">公開設定</label>
             <div className="mt-2 space-y-2">

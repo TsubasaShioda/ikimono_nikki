@@ -21,6 +21,7 @@ model User {
   diaryEntries           DiaryEntry[]
   sentFriendRequests     Friendship[]  @relation("sentRequests")
   receivedFriendRequests Friendship[]  @relation("receivedRequests")
+  likes                  Like[]
 }
 
 model DiaryEntry {
@@ -38,6 +39,7 @@ model DiaryEntry {
   // New fields for category
   categoryId   String?
   category     Category?    @relation(fields: [categoryId], references: [id])
+  likes        Like[]
 
   @@index([categoryId]) // Add index for categoryId
 }
@@ -78,4 +80,18 @@ enum FriendshipStatus {
   PENDING
   ACCEPTED
   DECLINED
+}
+
+model Like {
+  id           String     @id @default(uuid())
+  userId       String
+  diaryEntryId String
+  createdAt    DateTime @default(now())
+
+  user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  diaryEntry DiaryEntry @relation(fields: [diaryEntryId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, diaryEntryId]) // ユーザーが同じ投稿に複数回いいねできないようにする
+  @@index([userId])
+  @@index([diaryEntryId])
 }

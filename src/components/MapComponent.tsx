@@ -35,6 +35,8 @@ interface DiaryEntry {
     username: string;
     iconUrl: string | null;
   };
+  likesCount: number;
+  isLikedByCurrentUser: boolean;
 }
 
 interface MapComponentProps {
@@ -43,10 +45,11 @@ interface MapComponentProps {
   error: string;
   currentUserId: string | null;
   onDelete: (id: string) => void;
+  onLikeToggle: (id: string) => void;
   onBoundsChange: (bounds: { minLat: number; maxLat: number; minLng: number; maxLng: number } | null) => void; // 新しいプロップ
 }
 
-export default function MapComponent({ userLocation, entries, error, currentUserId, onDelete, onBoundsChange }: MapComponentProps) {
+export default function MapComponent({ userLocation, entries, error, currentUserId, onDelete, onLikeToggle, onBoundsChange }: MapComponentProps) {
   // Fix for default marker icon issue with Webpack - runs only on client
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -185,6 +188,24 @@ export default function MapComponent({ userLocation, entries, error, currentUser
                 <p className="text-gray-700 text-sm mb-2">{entry.description || '説明なし'}</p>
                 <p className="text-gray-500 text-xs mb-1">発見日時: {new Date(entry.takenAt).toLocaleString()}</p>
                 
+                {/* Like Button */}
+                <div className="mt-3 flex items-center space-x-2">
+                  <button
+                    onClick={() => onLikeToggle(entry.id)}
+                    disabled={!currentUserId} // Disable if not logged in
+                    className={`flex items-center space-x-1 px-3 py-1 rounded-md text-sm transition-colors ${ 
+                      entry.isLikedByCurrentUser
+                        ? 'bg-pink-500 text-white'
+                        : 'bg-gray-200 text-gray-700'
+                    } ${!currentUserId ? 'cursor-not-allowed' : 'hover:bg-pink-600 hover:text-white'}`}
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                      <path fillRule="evenodd" d="M3.172 5.172a4 4 0 015.656 0L10 6.343l1.172-1.171a4 4 0 115.656 5.656L10 17.657l-6.828-6.829a4 4 0 010-5.656z" clipRule="evenodd" />
+                    </svg>
+                    <span>{entry.likesCount}</span>
+                  </button>
+                </div>
+
                 {/* Action Buttons for Owner */}
                 {currentUserId === entry.userId && (
                   <div className="mt-3 flex space-x-2">

@@ -29,6 +29,8 @@ interface DiaryEntry {
     username: string;
     iconUrl: string | null;
   };
+  likesCount: number;
+  isLikedByCurrentUser: boolean;
 }
 
 interface CurrentUser {
@@ -131,7 +133,14 @@ export default function HomePage() {
       const data = await response.json();
 
       if (response.ok) {
-        setEntries(data.entries);
+        const processedEntries = data.entries.map((entry: any) => ({
+          ...entry,
+          likesCount: entry.likes.length,
+          isLikedByCurrentUser: currentUser
+            ? entry.likes.some((like: any) => like.userId === currentUser.id)
+            : false,
+        }));
+        setEntries(processedEntries);
       } else {
         setError(data.message || '日記の取得に失敗しました。');
       }
@@ -205,6 +214,53 @@ export default function HomePage() {
     }
   };
 
+  const onLikeToggle = async (entryId: string) => {
+    if (!currentUser) {
+      alert('「いいね」するにはログインが必要です。');
+      router.push('/auth/login');
+      return;
+    }
+
+    const originalEntries = [...entries];
+    const entry = entries.find(e => e.id === entryId);
+    if (!entry) return;
+
+    // Optimistic update
+    const updatedEntries = entries.map(e => {
+      if (e.id === entryId) {
+        return {
+          ...e,
+          likesCount: e.isLikedByCurrentUser ? e.likesCount - 1 : e.likesCount + 1,
+          isLikedByCurrentUser: !e.isLikedByCurrentUser,
+        };
+      }
+      return e;
+    });
+    setEntries(updatedEntries);
+
+    try {
+      const response = await fetch('/api/likes', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ diaryEntryId: entryId }),
+      });
+
+      if (!response.ok) {
+        // Revert on failure
+        setEntries(originalEntries);
+        const data = await response.json();
+        alert(data.message || '「いいね」に失敗しました。');
+      }
+    } catch (error) {
+      // Revert on error
+      setEntries(originalEntries);
+      alert('「いいね」中にエラーが発生しました。');
+      console.error('Like toggle error:', error);
+    }
+  };
+
   if (!isClient || initialLoading || userLocation === null) {
     return <div className="min-h-screen flex items-center justify-center">地図を読み込み中...</div>;
   }
@@ -265,6 +321,7 @@ export default function HomePage() {
             error={error} 
             currentUserId={currentUser?.id || null} 
             onDelete={handleDelete} 
+            onLikeToggle={onLikeToggle} // Add this line
             onBoundsChange={handleBoundsChange} 
         />
         
