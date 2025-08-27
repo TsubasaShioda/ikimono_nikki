@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useCallback } from 'react'; // Added useCallback
 import { MapContainer, TileLayer, Marker, Popup, useMap, useMapEvents } from 'react-leaflet';
 import L from 'leaflet';
 import Link from 'next/link';
@@ -49,6 +49,7 @@ interface DiaryEntry {
   };
   likesCount: number;
   isLikedByCurrentUser: boolean;
+  isFriend: boolean; // Add this line
 }
 
 interface MapComponentProps {
@@ -75,8 +76,32 @@ export default function MapComponent({ userLocation, entries, currentUserId, onD
 
   const myPostIcon = useMemo(() => {
     return new L.Icon({
-      iconUrl: 'https://unpkg.com/leaflet@1.7.1/dist/images/marker-icon.png',
+      iconUrl: 'https://unpkg.com/leaflet@1.7.1/dist/images/marker-icon.png', // Blue
       iconRetinaUrl: 'https://unpkg.com/leaflet@1.7.1/dist/images/marker-icon-2x.png',
+      shadowUrl: 'https://unpkg.com/leaflet@1.7.1/dist/images/marker-shadow.png',
+      iconSize: [25, 41],
+      iconAnchor: [12, 41],
+      popupAnchor: [1, -34],
+      shadowSize: [41, 41]
+    });
+  }, []);
+
+  const publicPostIcon = useMemo(() => {
+    return new L.Icon({
+      iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-green.png', // Green
+      iconRetinaUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-green.png',
+      shadowUrl: 'https://unpkg.com/leaflet@1.7.1/dist/images/marker-shadow.png',
+      iconSize: [25, 41],
+      iconAnchor: [12, 41],
+      popupAnchor: [1, -34],
+      shadowSize: [41, 41]
+    });
+  }, []);
+
+  const friendsOnlyPostIcon = useMemo(() => {
+    return new L.Icon({
+      iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-red.png', // Change to Red
+      iconRetinaUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-red.png',
       shadowUrl: 'https://unpkg.com/leaflet@1.7.1/dist/images/marker-shadow.png',
       iconSize: [25, 41],
       iconAnchor: [12, 41],
@@ -87,8 +112,8 @@ export default function MapComponent({ userLocation, entries, currentUserId, onD
 
   const otherPostIcon = useMemo(() => {
     return new L.Icon({
-      iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-red.png',
-      iconRetinaUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-red.png',
+      iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-grey.png', // Change to Grey
+      iconRetinaUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-grey.png',
       shadowUrl: 'https://unpkg.com/leaflet@1.7.1/dist/images/marker-shadow.png',
       iconSize: [25, 41],
       iconAnchor: [12, 41],
@@ -96,6 +121,32 @@ export default function MapComponent({ userLocation, entries, currentUserId, onD
       shadowSize: [41, 41]
     });
   }, []);
+
+  // Private posts by others should not be visible, so no icon needed for them.
+  // If a private post by the current user is shown, it will use myPostIcon.
+
+  const getMarkerIcon = useCallback((entry: DiaryEntry) => {
+    
+
+    if (currentUserId === entry.userId) {
+      return myPostIcon; // Always blue for my own posts
+    }
+
+    if (entry.privacyLevel === 'PUBLIC') {
+      return publicPostIcon; // Green for public posts by others
+    }
+
+    if (entry.privacyLevel === 'FRIENDS_ONLY' && entry.isFriend) {
+      return friendsOnlyPostIcon; // Orange for friends-only posts by friends
+    }
+
+    // Fallback for any other case (e.g., private posts by others, or friends-only by non-friends)
+    // These should ideally not be rendered on the map if privacy is respected.
+    // If they are rendered due to some logic, they will use a default or a specific "restricted" icon.
+    // For now, let's return a default (e.g., red) if somehow they slip through and are not public/friends.
+    return otherPostIcon; // Red for others' posts that don't fit above criteria (e.g., private, or friends-only by non-friends)
+  }, [currentUserId, myPostIcon, publicPostIcon, friendsOnlyPostIcon, otherPostIcon]);
+
 
   return (
     <div className="h-full w-full">
@@ -111,7 +162,7 @@ export default function MapComponent({ userLocation, entries, currentUserId, onD
           <Marker 
             key={entry.id} 
             position={[entry.latitude, entry.longitude]}
-            icon={currentUserId === entry.userId ? myPostIcon : otherPostIcon}
+            icon={getMarkerIcon(entry)} // Use the new function here
           >
             <Popup>
               <div className="font-sans w-64">

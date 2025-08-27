@@ -154,54 +154,10 @@
 ## 次のステップ
 
 -   **今後の改善案**: 
+    -　ピンの色(フレンドと全体公開の色分け)
+    -　公開範囲の再設定（フレンドには詳しく、その他には軽く表示）
+    -　ログアウトの警告
     -   コメント機能
     -   通知機能
     -   レスポンシブデザインの強化
-
-##コンソール上の問題
-
-Error: Route "/api/users/[id]" used `params.id`. `params` should be awaited before using its properties. Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis
-    at GET (src/app/api/users/[id]/route.ts:28:16)
-  26 |     }
-  27 |
-> 28 |     const { id: targetUserId } = context.params;
-     |                ^
-  29 |
-  30 |     const user = await prisma.user.findUnique({
-  31 |       where: { id: targetUserId },
- GET /api/users/e087cf0c-2a2f-48ea-8764-98e4fef5bcaa 200 in 755ms
- \UTF{2713} Compiled /entries/user/[id] in 236ms (784 modules)
- GET /entries/user/e087cf0c-2a2f-48ea-8764-98e4fef5bcaa 200 in 545ms
- \UTF{2713} Compiled /api/users/[id]/entries in 384ms (792 modules)
-Error: Route "/api/users/[id]" used `params.id`. `params` should be awaited before using its properties. Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis
-    at GET (src/app/api/users/[id]/route.ts:28:16)
-  26 |     }
-  27 |
-> 28 |     const { id: targetUserId } = context.params;
-     |                ^
-  29 |
-  30 |     const user = await prisma.user.findUnique({
-  31 |       where: { id: targetUserId },
- GET /api/auth/me 200 in 468ms
- GET /api/users/e087cf0c-2a2f-48ea-8764-98e4fef5bcaa 200 in 463ms
-Error: Route "/api/users/[id]/entries" used `params.id`. `params` should be awaited before using its properties. Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis
-    at GET (src/app/api/users/[id]/entries/route.ts:28:16)
-  26 |     }
-  27 |
-> 28 |     const { id: targetUserId } = context.params;
-     |                ^
-  29 |
-  30 |     // If fetching own entries, return all of them
-  31 |     if (targetUserId === currentUserId) {
- GET /api/users/e087cf0c-2a2f-48ea-8764-98e4fef5bcaa/entries 200 in 734ms
-Error: Route "/api/users/[id]/entries" used `params.id`. `params` should be awaited before using its properties. Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis
-    at GET (src/app/api/users/[id]/entries/route.ts:28:16)
-  26 |     }
-  27 |
-> 28 |     const { id: targetUserId } = context.params;
-     |                ^
-  29 |
-  30 |     // If fetching own entries, return all of them
-  31 |     if (targetUserId === currentUserId) {
- GET /api/users/e087cf0c-2a2f-48ea-8764-98e4fef5bcaa/entries 200 in 49ms
- \UTF{2713} Compiled / in 458ms (899 modules)
+    -　ローディングのアニメーション（だいぶ余裕あったら）

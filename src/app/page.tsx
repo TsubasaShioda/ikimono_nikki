@@ -32,6 +32,7 @@ interface DiaryEntry {
   };
   likesCount: number;
   isLikedByCurrentUser: boolean;
+  isFriend: boolean;
 }
 
 interface RawDiaryEntry extends Omit<DiaryEntry, 'likesCount' | 'isLikedByCurrentUser'> {
@@ -171,9 +172,19 @@ export default function HomePage() {
     }));
   };
   
-  const handleBoundsChange = (bounds: { minLat: number; maxLat: number; minLng: number; maxLng: number } | null) => {
+  const debouncedHandleBoundsChange = useMemo(
+    () => debounce((bounds: { minLat: number; maxLat: number; minLng: number; maxLng: number } | null) => {
       setMapBounds(bounds);
-  };
+    }, 300),
+    []
+  );
+
+  const handleBoundsChange = useCallback(
+    (bounds: { minLat: number; maxLat: number; minLng: number; maxLng: number } | null) => {
+      debouncedHandleBoundsChange(bounds);
+    },
+    [debouncedHandleBoundsChange]
+  );
 
   const handleResetBounds = () => {
       setMapBounds(null);

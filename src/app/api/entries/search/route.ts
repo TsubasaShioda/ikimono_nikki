@@ -22,6 +22,8 @@ export async function GET(request: NextRequest) {
   try {
     const userId = await getUserIdFromToken(request); // ゲストの場合はnullになります
 
+    let friendIds: string[] = [];
+
     const { searchParams } = new URL(request.url);
     const query = searchParams.get('q');
     const categoryId = searchParams.get('categoryId');
@@ -51,9 +53,10 @@ export async function GET(request: NextRequest) {
           addresseeId: true,
         },
       });
-      const friendIds = friendships.map((f: { requesterId: string; addresseeId: string; }) =>
+      friendIds = friendships.map((f: { requesterId: string; addresseeId: string; }) =>
         f.requesterId === userId ? f.addresseeId : f.requesterId
       );
+      
 
       (whereConditions.AND as Prisma.DiaryEntryWhereInput[]).push({
         OR: [
@@ -145,8 +148,22 @@ export async function GET(request: NextRequest) {
       },
     });
 
+    
+
+    // Calculate isFriend for each entry
+    const processedEntries = entries.map(entry => ({
+      ...entry,
+      isFriend: userId ? friendIds.includes(entry.userId) : false,
+      likesCount: entry.likes.length,
+      isLikedByCurrentUser: userId
+        ? entry.likes.some(like => like.userId === userId)
+        : false,
+    }));
+
+    
+
     if (timeOfDay && timeOfDay !== 'all') {
-      entries = entries.filter((entry: DiaryEntry) => {
+      processedEntries = processedEntries.filter((entry: DiaryEntry) => {
         const jstDate = new Date(new Date(entry.takenAt).toLocaleString('en-US', { timeZone: 'Asia/Tokyo' }));
         const hour = jstDate.getHours();
         
@@ -161,20 +178,22 @@ export async function GET(request: NextRequest) {
             return true;
         }
       });
+      
     }
 
     // 月フィルターを追加 (複数選択可能)
     if (monthOnlyParam) {
       const targetMonths = monthOnlyParam.split(',').map(month => parseInt(month.trim(), 10)).filter(month => !isNaN(month) && month >= 1 && month <= 12);
       if (targetMonths.length > 0) {
-        entries = entries.filter((entry: DiaryEntry) => {
+        processedEntries = processedEntries.filter((entry: DiaryEntry) => {
           const jstDate = new Date(new Date(entry.takenAt).toLocaleString('en-US', { timeZone: 'Asia/Tokyo' }));
           return targetMonths.includes(jstDate.getMonth() + 1); // getMonth()は0-indexed
         });
       }
+      
     }
 
-    return NextResponse.json({ entries }, { status: 200 });
+    return NextResponse.json({ entries: processedEntries }, { status: 200 });
   } catch (error) {
     console.error('Diary search error:', error);
     return NextResponse.json({ message: '日記の検索中にエラーが発生しました' }, { status: 500 });
