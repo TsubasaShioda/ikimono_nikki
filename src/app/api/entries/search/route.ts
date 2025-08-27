@@ -1,11 +1,11 @@
-import { NextResponse } from 'next/server';
-import { PrismaClient, PrivacyLevel } from '@prisma/client';
+import { NextResponse, NextRequest } from 'next/server';
+import { PrismaClient, PrivacyLevel, Prisma, DiaryEntry } from '@prisma/client';
 import { jwtVerify } from 'jose';
 
 const prisma = new PrismaClient();
 
 // Helper function to get userId from token
-async function getUserIdFromToken(request: Request): Promise<string | null> {
+async function getUserIdFromToken(request: NextRequest): Promise<string | null> {
   const token = request.cookies.get('auth_token')?.value;
   const jwtSecret = process.env.JWT_SECRET;
   if (!token || !jwtSecret) return null;
@@ -13,11 +13,12 @@ async function getUserIdFromToken(request: Request): Promise<string | null> {
     const { payload } = await jwtVerify(token, new TextEncoder().encode(jwtSecret));
     return payload.userId as string;
   } catch (error) {
+    console.error("JWT verification error:", error);
     return null;
   }
 }
 
-export async function GET(request: Request) {
+export async function GET(request: NextRequest) {
   try {
     const userId = await getUserIdFromToken(request); // ゲストの場合はnullになります
 
@@ -33,7 +34,7 @@ export async function GET(request: Request) {
     const timeOfDay = searchParams.get('timeOfDay');
     const monthOnlyParam = searchParams.get('monthOnly'); // 月フィルターを複数選択可能に
 
-    const whereConditions: any = {
+    const whereConditions: Prisma.DiaryEntryWhereInput = {
       AND: [],
     };
 
@@ -50,11 +51,11 @@ export async function GET(request: Request) {
           addresseeId: true,
         },
       });
-      const friendIds = friendships.map(f =>
+      const friendIds = friendships.map((f: { requesterId: string; addresseeId: string; }) =>
         f.requesterId === userId ? f.addresseeId : f.requesterId
       );
 
-      whereConditions.AND.push({
+      (whereConditions.AND as Prisma.DiaryEntryWhereInput[]).push({
         OR: [
           { privacyLevel: PrivacyLevel.PUBLIC },
           { userId: userId },
@@ -66,13 +67,13 @@ export async function GET(request: Request) {
       });
     } else {
       // --- ゲストユーザーの場合 ---
-      whereConditions.AND.push({
+      (whereConditions.AND as Prisma.DiaryEntryWhereInput[]).push({
         privacyLevel: PrivacyLevel.PUBLIC,
       });
     }
 
     if (query && query.trim() !== '') {
-      whereConditions.AND.push({
+      (whereConditions.AND as Prisma.DiaryEntryWhereInput[]).push({
         OR: [
           { title: { contains: query } },
           { description: { contains: query } },
@@ -81,11 +82,11 @@ export async function GET(request: Request) {
     }
 
     if (categoryId) {
-      whereConditions.AND.push({ categoryId: categoryId });
+      (whereConditions.AND as Prisma.DiaryEntryWhereInput[]).push({ categoryId: categoryId });
     }
 
     if (minLat && maxLat && minLng && maxLng) {
-      whereConditions.AND.push({
+      (whereConditions.AND as Prisma.DiaryEntryWhereInput[]).push({
         latitude: {
           gte: parseFloat(minLat),
           lte: parseFloat(maxLat),
@@ -98,7 +99,7 @@ export async function GET(request: Request) {
     }
 
     if (startDate || endDate) {
-      const takenAtCondition: any = {};
+      const takenAtCondition: Prisma.DateTimeFilter = {};
       if (startDate) {
         const start = new Date(startDate);
         start.setHours(0, 0, 0, 0);
@@ -109,7 +110,7 @@ export async function GET(request: Request) {
         end.setHours(23, 59, 59, 999);
         takenAtCondition.lte = end;
       }
-      whereConditions.AND.push({ takenAt: takenAtCondition });
+      (whereConditions.AND as Prisma.DiaryEntryWhereInput[]).push({ takenAt: takenAtCondition });
     }
 
     let entries = await prisma.diaryEntry.findMany({
@@ -145,7 +146,7 @@ export async function GET(request: Request) {
     });
 
     if (timeOfDay && timeOfDay !== 'all') {
-      entries = entries.filter(entry => {
+      entries = entries.filter((entry: DiaryEntry) => {
         const jstDate = new Date(new Date(entry.takenAt).toLocaleString('en-US', { timeZone: 'Asia/Tokyo' }));
         const hour = jstDate.getHours();
         
@@ -166,7 +167,7 @@ export async function GET(request: Request) {
     if (monthOnlyParam) {
       const targetMonths = monthOnlyParam.split(',').map(month => parseInt(month.trim(), 10)).filter(month => !isNaN(month) && month >= 1 && month <= 12);
       if (targetMonths.length > 0) {
-        entries = entries.filter(entry => {
+        entries = entries.filter((entry: DiaryEntry) => {
           const jstDate = new Date(new Date(entry.takenAt).toLocaleString('en-US', { timeZone: 'Asia/Tokyo' }));
           return targetMonths.includes(jstDate.getMonth() + 1); // getMonth()は0-indexed
         });

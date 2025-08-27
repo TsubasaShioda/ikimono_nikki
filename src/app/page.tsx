@@ -1,11 +1,12 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import dynamic from 'next/dynamic';
 import { debounce } from 'lodash';
-import FilterSidebar from '../components/FilterSidebar'; // Import the sidebar
+import Sidebar, { Filters } from '@/components/FilterSidebar';
+import Image from 'next/image';
 
 // Dynamically import MapComponent
 const MapComponent = dynamic(
@@ -24,13 +25,17 @@ interface DiaryEntry {
   takenAt: string;
   createdAt: string;
   userId: string;
-  user: { // Add user details
+  user: {
     id: string;
     username: string;
     iconUrl: string | null;
   };
   likesCount: number;
   isLikedByCurrentUser: boolean;
+}
+
+interface RawDiaryEntry extends Omit<DiaryEntry, 'likesCount' | 'isLikedByCurrentUser'> {
+  likes: { userId: string }[];
 }
 
 interface CurrentUser {
@@ -49,14 +54,16 @@ export default function HomePage() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   // Unified filter state
-  const [filters, setFilters] = useState({
+  const [filters, setFilters] = useState<Filters>({
     q: '',
     categoryId: '',
     startDate: '',
     endDate: '',
     timeOfDay: 'all',
-    bounds: null as { minLat: number; maxLat: number; minLng: number; maxLng: number } | null,
+    monthOnly: null,
   });
+
+  const [mapBounds, setMapBounds] = useState<{ minLat: number; maxLat: number; minLng: number; maxLng: number } | null>(null);
 
   const router = useRouter();
 
@@ -74,8 +81,6 @@ export default function HomePage() {
             const data = await response.json();
             setCurrentUser(data.user);
           } else {
-            // 401 Unauthorized or other errors mean the user is not logged in.
-            // This is an expected state for guests, so we just clear the user state.
             setCurrentUser(null);
           }
         } catch (err) {
@@ -96,36 +101,35 @@ export default function HomePage() {
         },
         () => {
           setError('現在地を取得できませんでした。');
-          setUserLocation([35.6895, 139.6917]); // Default to Tokyo
+          setUserLocation([35.6895, 139.6917]);
         }
       );
     } else if (isClient) {
       setError('お使いのブラウザは位置情報に対応していません。');
-      setUserLocation([35.6895, 139.6917]); // Default to Tokyo
+      setUserLocation([35.6895, 139.6917]);
     }
   }, [isClient]);
 
   // Fetch entries based on the unified filters state
-  const fetchEntries = useCallback(debounce(async (currentFilters: typeof filters) => {
-    // currentUserがundefinedの間は実行しない
+  const fetchEntries = useCallback(async () => {
     if (!isClient) return;
 
     setSearchLoading(true);
     setError('');
     try {
       const params = new URLSearchParams();
-      if (currentFilters.q) params.append('q', currentFilters.q);
-      if (currentFilters.categoryId) params.append('categoryId', currentFilters.categoryId);
-      if (currentFilters.startDate) params.append('startDate', currentFilters.startDate);
-      if (currentFilters.endDate) params.append('endDate', currentFilters.endDate);
-      if (currentFilters.timeOfDay && currentFilters.timeOfDay !== 'all') {
-        params.append('timeOfDay', currentFilters.timeOfDay);
+      if (filters.q) params.append('q', filters.q);
+      if (filters.categoryId) params.append('categoryId', filters.categoryId);
+      if (filters.startDate) params.append('startDate', filters.startDate);
+      if (filters.endDate) params.append('endDate', filters.endDate);
+      if (filters.timeOfDay && filters.timeOfDay !== 'all') {
+        params.append('timeOfDay', filters.timeOfDay);
       }
-      if (currentFilters.bounds) {
-        params.append('minLat', currentFilters.bounds.minLat.toString());
-        params.append('maxLat', currentFilters.bounds.maxLat.toString());
-        params.append('minLng', currentFilters.bounds.minLng.toString());
-        params.append('maxLng', currentFilters.bounds.maxLng.toString());
+      if (mapBounds) {
+        params.append('minLat', mapBounds.minLat.toString());
+        params.append('maxLat', mapBounds.maxLat.toString());
+        params.append('minLng', mapBounds.minLng.toString());
+        params.append('maxLng', mapBounds.maxLng.toString());
       }
 
       const url = `/api/entries/search?${params.toString()}`;
@@ -133,11 +137,11 @@ export default function HomePage() {
       const data = await response.json();
 
       if (response.ok) {
-        const processedEntries = data.entries.map((entry: any) => ({
+        const processedEntries = data.entries.map((entry: RawDiaryEntry) => ({
           ...entry,
           likesCount: entry.likes.length,
           isLikedByCurrentUser: currentUser
-            ? entry.likes.some((like: any) => like.userId === currentUser.id)
+            ? entry.likes.some((like: { userId: string }) => like.userId === currentUser.id)
             : false,
         }));
         setEntries(processedEntries);
@@ -151,26 +155,28 @@ export default function HomePage() {
       setSearchLoading(false);
       setInitialLoading(false);
     }
-  }, 500), [isClient]);
+  }, [isClient, currentUser, filters, mapBounds]);
+
+  const debouncedFetchEntries = useMemo(() => debounce(fetchEntries, 500), [fetchEntries]);
 
   // Trigger fetchEntries when filters change
   useEffect(() => {
-    fetchEntries(filters);
-  }, [filters, fetchEntries]);
+    debouncedFetchEntries();
+  }, [filters, mapBounds, debouncedFetchEntries]);
 
-  const handleApplyFilters = (newFilters: Partial<typeof filters>) => {
+  const handleApplyFilters = (newFilters: Filters) => {
     setFilters(prevFilters => ({
       ...prevFilters,
       ...newFilters,
     }));
   };
   
-  const handleBoundsChange = (bounds: any) => {
-      setFilters(prev => ({ ...prev, bounds }));
+  const handleBoundsChange = (bounds: { minLat: number; maxLat: number; minLng: number; maxLng: number } | null) => {
+      setMapBounds(bounds);
   };
 
   const handleResetBounds = () => {
-      setFilters(prev => ({ ...prev, bounds: null }));
+      setMapBounds(null);
   };
 
   const handleLogout = async () => {
@@ -180,9 +186,8 @@ export default function HomePage() {
       });
 
       if (response.ok) {
-        setCurrentUser(null); // Update UI immediately
-        // Optionally, re-fetch entries for guest view
-        fetchEntries(filters);
+        setCurrentUser(null);
+        debouncedFetchEntries();
       } else {
         alert('ログアウトに失敗しました。');
       }
@@ -290,9 +295,9 @@ export default function HomePage() {
               </Link>
               <Link href="/settings" className="w-10 h-10 rounded-full overflow-hidden bg-gray-200 flex items-center justify-center hover:opacity-80 transition-opacity">
                 {currentUser.iconUrl ? (
-                  <img src={currentUser.iconUrl} alt="プロフィールアイコン" className="w-full h-full object-cover" />
+                  <Image src={currentUser.iconUrl} alt="プロフィールアイコン" width={40} height={40} className="w-full h-full object-cover" />
                 ) : (
-                  <img src="/default-avatar.svg" alt="デフォルトアイコン" className="w-full h-full object-cover" />
+                  <Image src="/default-avatar.svg" alt="デフォルトアイコン" width={40} height={40} className="w-full h-full object-cover" />
                 )}
               </Link>
               <button onClick={handleLogout} className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700">
@@ -318,15 +323,21 @@ export default function HomePage() {
         <MapComponent 
             userLocation={userLocation} 
             entries={entries} 
-            error={error} 
             currentUserId={currentUser?.id || null} 
             onDelete={handleDelete} 
-            onLikeToggle={onLikeToggle} // Add this line
+            onLikeToggle={onLikeToggle}
             onBoundsChange={handleBoundsChange} 
         />
+
+        {/* エラーメッセージの表示 */}
+        {error && (
+            <div className="absolute top-4 left-1/2 transform -translate-x-1/2 z-20 bg-red-500 text-white px-4 py-2 rounded-md shadow-lg">
+                {error}
+            </div>
+        )}
         
         {/* Area selection reset button */}
-        {filters.bounds && (
+        {mapBounds && (
           <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 z-10">
             <button
               onClick={handleResetBounds}
@@ -352,11 +363,18 @@ export default function HomePage() {
       </main>
 
       {/* Sidebar and overlay */}
-      <FilterSidebar 
+      <Sidebar 
         isSidebarOpen={isSidebarOpen}
         onClose={() => setIsSidebarOpen(false)}
         onApplyFilters={handleApplyFilters}
-        initialFilters={filters}
+        initialFilters={{
+          q: filters.q,
+          categoryId: filters.categoryId,
+          startDate: filters.startDate,
+          endDate: filters.endDate,
+          timeOfDay: filters.timeOfDay,
+          monthOnly: filters.monthOnly,
+        }}
       />
       {isSidebarOpen && <div className="fixed inset-0 bg-black opacity-50 z-40" onClick={() => setIsSidebarOpen(false)}></div>}
     </div>

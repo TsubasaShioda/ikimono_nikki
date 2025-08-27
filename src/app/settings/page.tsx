@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import Image from 'next/image';
 
 export default function SettingsPage() {
   const [username, setUsername] = useState('');
@@ -20,8 +21,8 @@ export default function SettingsPage() {
     const fetchUserData = async () => {
       try {
         const response = await fetch('/api/auth/me');
+        const data = await response.json(); // data の定義を if/else の外に出す
         if (response.ok) {
-          const data = await response.json();
           setUsername(data.user.username);
           setEmail(data.user.email);
           setDescription(data.user.description || ''); // 追加
@@ -149,7 +150,7 @@ export default function SettingsPage() {
             {iconUrl && !iconFile && (
               <div className="mt-2">
                 <p className="text-sm text-gray-600 mb-1">現在のアイコン:</p>
-                <img src={iconUrl} alt="Current Icon" className="w-20 h-20 object-cover rounded-full" />
+                <Image src={iconUrl} alt="Current Icon" width={80} height={80} className="object-cover rounded-full" />
                 <button
                   type="button"
                   onClick={() => setIconUrl(null)} // アイコンを削除

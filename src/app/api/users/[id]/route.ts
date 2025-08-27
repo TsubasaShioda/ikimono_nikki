@@ -1,15 +1,11 @@
-import { NextResponse } from 'next/server';
+import { NextResponse, NextRequest } from 'next/server';
 import { PrismaClient } from '@prisma/client';
 import { jwtVerify } from 'jose';
 
 const prisma = new PrismaClient();
 
-interface Params {
-  id: string; // This will be the userId of the profile to fetch
-}
-
 // Helper function to get userId from token
-async function getUserIdFromToken(request: Request): Promise<string | null> {
+async function getUserIdFromToken(request: NextRequest): Promise<string | null> {
   const token = request.cookies.get('auth_token')?.value;
   const jwtSecret = process.env.JWT_SECRET;
   if (!token || !jwtSecret) return null;
@@ -17,18 +13,21 @@ async function getUserIdFromToken(request: Request): Promise<string | null> {
     const { payload } = await jwtVerify(token, new TextEncoder().encode(jwtSecret));
     return payload.userId as string;
   } catch (error) {
+    console.error("JWT verification error:", error);
     return null;
   }
 }
 
-export async function GET(request: Request, { params }: { params: Params }) {
+export async function GET(request: NextRequest, context: { params: { id: string } }) {
   try {
-    const currentUserId = await getUserIdFromToken(request);
+    const req = await request;
+
+    const currentUserId = await getUserIdFromToken(req);
     if (!currentUserId) {
       return NextResponse.json({ message: '認証が必要です' }, { status: 401 });
     }
 
-    const { id: targetUserId } = params;
+    const { id: targetUserId } = await context.params;
 
     const user = await prisma.user.findUnique({
       where: { id: targetUserId },
@@ -46,7 +45,8 @@ export async function GET(request: Request, { params }: { params: Params }) {
     }
 
     // Check if current user is friends with target user
-    const isFriends = await prisma.friendship.findFirst({
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const _isFriends = await prisma.friendship.findFirst({
       where: {
         status: 'ACCEPTED',
         OR: [

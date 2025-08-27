@@ -3,9 +3,18 @@
 import { useState, useEffect } from 'react';
 import { Category } from '@prisma/client';
 
+export interface Filters {
+  q: string;
+  categoryId: string;
+  startDate: string;
+  endDate: string;
+  timeOfDay: string;
+  monthOnly: number[] | null;
+}
+
 interface FilterSidebarProps {
-  onApplyFilters: (filters: any) => void;
-  initialFilters: any;
+  onApplyFilters: (filters: Filters) => void;
+  initialFilters: Filters;
   isSidebarOpen: boolean;
   onClose: () => void;
 }

@@ -1,14 +1,10 @@
 'use client';
 
-import { useState, useEffect, useMemo, useRef } from 'react'; // useRefをインポート
-import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
+import { useEffect, useMemo } from 'react';
+import { MapContainer, TileLayer, Marker, Popup, useMap, useMapEvents } from 'react-leaflet';
 import L from 'leaflet';
 import Link from 'next/link';
-
-// react-leaflet-drawのインポート
-import { FeatureGroup } from 'react-leaflet';
-import { EditControl } from 'react-leaflet-draw';
-import 'leaflet-draw/dist/leaflet.draw.css'; // leaflet-drawのCSSをインポート
+import Image from 'next/image';
 
 // Component to update map center based on user location
 function MapContentUpdater({ center }: { center: [number, number] }) {
@@ -16,6 +12,22 @@ function MapContentUpdater({ center }: { center: [number, number] }) {
   useEffect(() => {
     map.setView(center);
   }, [center, map]);
+  return null;
+}
+
+// Custom hook to handle map events and update bounds
+function MapEventHandler({ onBoundsChange }: { onBoundsChange: (bounds: { minLat: number; maxLat: number; minLng: number; maxLng: number }) => void }) {
+  const map = useMapEvents({
+    moveend: () => {
+      const bounds = map.getBounds();
+      onBoundsChange({
+        minLat: bounds.getSouth(),
+        maxLat: bounds.getNorth(),
+        minLng: bounds.getWest(),
+        maxLng: bounds.getEast(),
+      });
+    },
+  });
   return null;
 }
 
@@ -30,7 +42,7 @@ interface DiaryEntry {
   takenAt: string;
   createdAt: string;
   userId: string;
-  user: { // Add user details to match page.tsx
+  user: {
     id: string;
     username: string;
     iconUrl: string | null;
@@ -42,17 +54,16 @@ interface DiaryEntry {
 interface MapComponentProps {
   userLocation: [number, number];
   entries: DiaryEntry[];
-  error: string;
   currentUserId: string | null;
   onDelete: (id: string) => void;
   onLikeToggle: (id: string) => void;
-  onBoundsChange: (bounds: { minLat: number; maxLat: number; minLng: number; maxLng: number } | null) => void; // 新しいプロップ
+  onBoundsChange: (bounds: { minLat: number; maxLat: number; minLng: number; maxLng: number } | null) => void;
 }
 
-export default function MapComponent({ userLocation, entries, error, currentUserId, onDelete, onLikeToggle, onBoundsChange }: MapComponentProps) {
-  // Fix for default marker icon issue with Webpack - runs only on client
+export default function MapComponent({ userLocation, entries, currentUserId, onDelete, onLikeToggle, onBoundsChange }: MapComponentProps) {
   useEffect(() => {
     if (typeof window !== 'undefined') {
+      // @ts-expect-error Leaflet's type definition is missing _getIconUrl, but it's needed for image icons to work correctly.
       delete L.Icon.Default.prototype._getIconUrl;
       L.Icon.Default.mergeOptions({
         iconRetinaUrl: 'https://unpkg.com/leaflet@1.7.1/dist/images/marker-icon-2x.png',
@@ -62,7 +73,6 @@ export default function MapComponent({ userLocation, entries, error, currentUser
     }
   }, []);
 
-  // Define custom icons for my posts and other posts
   const myPostIcon = useMemo(() => {
     return new L.Icon({
       iconUrl: 'https://unpkg.com/leaflet@1.7.1/dist/images/marker-icon.png',
@@ -87,92 +97,33 @@ export default function MapComponent({ userLocation, entries, error, currentUser
     });
   }, []);
 
-  const featureGroupRef = useRef<L.FeatureGroup>(null); // FeatureGroupのrefを作成
-
-  const handleDrawCreated = (e: any) => {
-    const type = e.layerType;
-    const layer = e.layer;
-
-    if (type === 'rectangle') {
-      const bounds = layer.getBounds();
-      onBoundsChange({
-        minLat: bounds.getSouthWest().lat,
-        maxLat: bounds.getNorthEast().lat,
-        minLng: bounds.getSouthWest().lng,
-        maxLng: bounds.getNorthEast().lng,
-      });
-    } else if (type === 'circle') { // 円形描画の処理を追加
-      const center = layer.getLatLng();
-      const radius = layer.getRadius(); // meters
-      // Convert radius to degrees for approximate bounding box or pass directly to API
-      // For simplicity, we'll pass center and radius to API
-      onBoundsChange({
-        minLat: center.lat - (radius / 111111), // Approximate degree conversion
-        maxLat: center.lat + (radius / 111111),
-        minLng: center.lng - (radius / (111111 * Math.cos(center.lat * Math.PI / 180))),
-        maxLng: center.lng + (radius / (111111 * Math.cos(center.lat * Math.PI / 180))),
-      });
-    }
-    
-    // Clear previous drawings from the FeatureGroup
-    if (featureGroupRef.current) {
-      featureGroupRef.current.clearLayers();
-      featureGroupRef.current.addLayer(layer); // 描画されたレイヤーをFeatureGroupに追加
-    }
-  };
-
-  const handleDrawDeleted = (e: any) => {
-    if (featureGroupRef.current) {
-      featureGroupRef.current.clearLayers();
-    }
-    onBoundsChange(null); // Clear bounds when drawing is deleted
-  };
-
   return (
     <div className="h-full w-full">
       <MapContainer center={userLocation} zoom={13} scrollWheelZoom={true} style={{ height: '100%', width: '100%' }}>
         <MapContentUpdater center={userLocation} />
+        <MapEventHandler onBoundsChange={onBoundsChange} />
         <TileLayer
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
         />
-        <FeatureGroup ref={featureGroupRef}> {/* refをFeatureGroupに渡す */}
-          <EditControl
-            position="topright"
-            onCreated={handleDrawCreated}
-            onDeleted={handleDrawDeleted}
-            draw={{
-              rectangle: false, // 四角形描画を無効化
-              polygon: false,
-              polyline: false,
-              circle: true, // 円形描画を有効化
-              marker: false,
-              circlemarker: false,
-              repeatMode: false, // これを追加
-            }}
-            edit={{
-              edit: false, // 編集機能を無効化
-              remove: true, // 削除機能を有効化
-              poly: false,
-              featureGroup: featureGroupRef.current || undefined, // featureGroupRefを渡す
-            }}
-          />
-        </FeatureGroup>
+
         {entries.map((entry) => (
           <Marker 
             key={entry.id} 
             position={[entry.latitude, entry.longitude]}
-            icon={currentUserId === entry.userId ? myPostIcon : otherPostIcon} // Conditional icon
+            icon={currentUserId === entry.userId ? myPostIcon : otherPostIcon}
           >
             <Popup>
               <div className="font-sans w-64">
                 {/* User Info */}
                 <div className="flex items-center mb-2 border-b pb-2">
                   <Link href={`/entries/user/${entry.user.id}`} className="flex items-center space-x-2 hover:opacity-80 transition-opacity">
-                    <img 
-                      src={entry.user.iconUrl || '/default-avatar.svg'} // Use a default avatar
+                    <Image 
+                      src={entry.user.iconUrl || '/default-avatar.svg'}
                       alt={entry.user.username} 
-                      className="w-8 h-8 rounded-full object-cover bg-gray-200" // Added bg-gray-200 for placeholder
+                      width={32} 
+                      height={32} 
+                      className="rounded-full object-cover bg-gray-200"
                     />
                     <span className="font-semibold text-gray-800">{entry.user.username}</span>
                   </Link>
@@ -182,7 +133,7 @@ export default function MapComponent({ userLocation, entries, error, currentUser
                 <h3 className="text-lg font-bold text-gray-900 mb-1">{entry.title}</h3>
                 {entry.imageUrl && (
                   <a href={entry.imageUrl} target="_blank" rel="noopener noreferrer">
-                    <img src={entry.imageUrl} alt={entry.title} className="w-full h-32 object-cover rounded-md mb-2 hover:opacity-90 transition-opacity" />
+                    <Image src={entry.imageUrl} alt={entry.title} width={256} height={128} className="object-cover rounded-md mb-2 hover:opacity-90 transition-opacity" />
                   </a>
                 )}
                 <p className="text-gray-700 text-sm mb-2">{entry.description || '説明なし'}</p>
@@ -192,7 +143,7 @@ export default function MapComponent({ userLocation, entries, error, currentUser
                 <div className="mt-3 flex items-center space-x-2">
                   <button
                     onClick={() => onLikeToggle(entry.id)}
-                    disabled={!currentUserId} // Disable if not logged in
+                    disabled={!currentUserId}
                     className={`flex items-center space-x-1 px-3 py-1 rounded-md text-sm transition-colors ${ 
                       entry.isLikedByCurrentUser
                         ? 'bg-pink-500 text-white'

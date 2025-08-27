@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
+import Image from 'next/image';
 // import dynamic from 'next/dynamic'; // MapComponentを削除するので不要
 
 // Dynamically import MapComponent (削除)
@@ -187,7 +188,7 @@ export default function UserEntriesPage() {
             {entries.map((entry) => (
               <div key={entry.id} className="bg-white rounded-lg shadow-md overflow-hidden">
                 {entry.imageUrl && (
-                  <img src={entry.imageUrl} alt={entry.title} className="w-full h-48 object-cover" />
+                  <Image src={entry.imageUrl} alt={entry.title} width={320} height={192} className="object-cover" />
                 )}
                 <div className="p-4">
                   <h2 className="text-xl font-semibold text-gray-800 mb-2">{entry.title}</h2>

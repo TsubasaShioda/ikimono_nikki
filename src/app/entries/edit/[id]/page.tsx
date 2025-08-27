@@ -5,6 +5,7 @@ import { useRouter, useParams } from 'next/navigation';
 import { MapContainer, TileLayer, Marker, useMapEvents } from 'react-leaflet';
 import L from 'leaflet';
 import { PrivacyLevel } from '@/lib/types'; // Import enum from shared location
+import Image from 'next/image';
 
 // Component to handle map clicks and update coordinates
 function MapClickHandler({ setLatitude, setLongitude }: { setLatitude: (lat: string) => void; setLongitude: (lng: string) => void }) {
@@ -134,6 +135,7 @@ export default function EditEntryPage() {
   // Fix for default marker icon issue with Webpack
   useEffect(() => {
     if (typeof window !== 'undefined') {
+      // @ts-expect-error Leaflet's type definition is missing _getIconUrl, but it's needed for image icons to work correctly.
       delete L.Icon.Default.prototype._getIconUrl;
       L.Icon.Default.mergeOptions({
         iconRetinaUrl: 'https://unpkg.com/leaflet@1.7.1/dist/images/marker-icon-2x.png',
@@ -239,7 +241,7 @@ export default function EditEntryPage() {
             {imageUrl && !imageFile && (
               <div className="mt-2">
                 <p className="text-sm text-gray-600 mb-1">現在の画像:</p>
-                <img src={imageUrl} alt="Current" className="w-32 h-32 object-cover rounded-md" />
+                <Image src={imageUrl} alt="Current" width={128} height={128} className="object-cover rounded-md" />
                 <button
                   type="button"
                   onClick={() => setImageUrl(null)}

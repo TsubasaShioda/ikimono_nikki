@@ -1,11 +1,11 @@
-import { NextResponse } from 'next/server';
+import { NextResponse, NextRequest } from 'next/server';
 import { PrismaClient } from '@prisma/client';
 import { jwtVerify } from 'jose'; // For authentication, though categories might be public
 
 const prisma = new PrismaClient();
 
 // Helper function to get userId from token (optional for public categories)
-async function getUserIdFromToken(request: Request): Promise<string | null> {
+async function getUserIdFromToken(request: NextRequest): Promise<string | null> {
   const token = request.cookies.get('auth_token')?.value;
   const jwtSecret = process.env.JWT_SECRET;
   if (!token || !jwtSecret) return null;
@@ -13,11 +13,12 @@ async function getUserIdFromToken(request: Request): Promise<string | null> {
     const { payload } = await jwtVerify(token, new TextEncoder().encode(jwtSecret));
     return payload.userId as string;
   } catch (error) {
+    console.error("JWT verification error:", error);
     return null;
   }
 }
 
-export async function GET(request: Request) {
+export async function GET(request: NextRequest) {
   try {
     // Authentication is optional for fetching categories, but good practice for API access
     const userId = await getUserIdFromToken(request);

@@ -1,0 +1,207 @@
+# プロジェクト進捗ログ
+
+## これまでの進捗サマリー
+
+-   **2025-08-11**
+    -   プロジェクトディレクトリ `ikimono-nikki` を作成。
+    -   Gitリポジリを初期化し、GitHub (`git@github.com:Tsubasashioda/ikimono_nikki.git`) に接続。
+    -   基本設計書を `README.md` として作成し、最初のコミットをプッシュ。
+    -   Next.jsプロジェクト（TypeScript, Tailwind CSS, ESLint）の雛形を作成。
+    -   `README.md` の内容を更新（ターゲットユーザーの絞り込みなど）。
+    -   Next.jsのプロジェクトファイルをGitHubにプッシュ。
+    -   MySQLにデータベース `ikimono_nikki` を作成完了。
+    -   Prismaをインストールし、MySQLへの接続設定を`.env`ファイルに記述完了。
+    -   Prismaでデータベーススキーマを定義し、`prisma db push`でデータベースに適用完了。
+    -   Next.js開発サーバーを起動し、初期設定が正しく行われたことを確認。
+    -   ユーザー登録・ログインAPIの基本構造を作成し、`bcryptjs`を導入。
+    -   ユーザー登録・ログインのフロントエンドフォームを実装。
+    -   JWTベースの認証（ログインAPI修正、ログアウトAPI作成）と認証ミドルウェアによるルーティング保護を実装。
+    -   認証フォームの文字色を修正。
+    -   認証フォームの日本語化。
+    -   JWTライブラリを`jsonwebtoken`から`jose`に切り替え（Edge Runtime対応）。
+    -   APIエラーメッセージの日本語化。
+    -   認証フローの動作確認と、APIエラーメッセージの日本語化を完了。
+    -   ルートディレクトリの不要な`package.json`, `package-lock.json`, `prisma`ディレクトリを整理。
+    -   生き物日記の投稿機能（フォーム、API、データベース保存）を実装。
+    -   package.jsonを再構築し、すべての依存関係をインストール。
+    -   **Gitリポジリをコミット`84347e2`までロールバック。地図関連の変更はすべて取り消されました。**
+    -   `/api/entries`のGETハンドラーを再々追加。
+-   **2025-08-14**
+    -   `next.config.ts`に`reactStrictMode: false`を追加し、`Map container is already initialized`エラーを回避。
+    -   `leaflet`と`react-leaflet`、およびそれらの型定義ファイルを再インストール。
+    -   `src/components/MapComponent.tsx`を再作成し、地図表示機能を再導入。
+    -   `src/app/page.tsx`を更新し、`MapComponent`を統合。
+    -   `src/app/entries/new/page.tsx`を更新し、地図上での座標選択と画像アップロード機能を再実装。
+    -   `public/uploads`ディレクトリを作成。
+    -   `src/app/api/entries/[id]/route.ts`に`PUT` (更新) と `DELETE` (削除) メソッドを実装。
+    -   `src/app/api/auth/me/route.ts`にログインユーザー情報を取得する`GET`メソッドを実装。
+    -   `src/app/entries/edit/[id]/page.tsx`に日記編集ページを新規作成。
+    -   `src/app/api/entries/my/route.ts`に自分の日記一覧を取得する`GET`メソッドを実装。
+    -   `src/app/entries/my/page.tsx`に自分の日記一覧表示ページを新規作成。
+    -   `src/app/page.tsx`のヘッダーに「自分の日記」へのリンクを追加。
+    -   `src/app/api/entries/[id]/route.ts`に欠落していた`GET`メソッドを追加し、日記編集ページでのデータ取得エラーを修正。
+-   **2025-08-15**
+    -   地図上の日記ピンの表示について、自分の投稿と他人の投稿を色分けする機能を実装。
+    -   非公開の日記が地図上に表示されない問題についてデバッグを実施。バックエンドAPIは正しくデータを返していることを確認。
+    -   ユーザーの要望により、日記の公開レベル（完全に非公開、限定公開、完全公開）の概念導入を検討。
+    -   デバッグログを`src/app/page.tsx`および`src/app/api/entries/route.ts`から削除。
+    -   マイページ（ユーザープロファイル）編集機能のバックエンドAPI (`src/app/api/auth/me/route.ts`の`PUT`メソッド) を実装。
+    -   マイページ（ユーザープロファイル）編集機能のフロントエンドページ (`src/app/settings/page.tsx`) を実装。
+    -   `src/app/page.tsx`にプロフィール編集ページへのリンクを追加。
+    -   メインページのヘッダーを改修し、「プロフィール編集」リンクを動的なプロフィールアイコン表示に変更。ユーザーがアイコンを設定している場合はその画像、未設定の場合はデフォルトのアバターが表示されるようにした。
+    -   日記に公開レベル（`PRIVATE`, `PUBLIC`）を設定する機能を追加。
+        -   `schema.prisma`を更新し、`isPublic`を`privacyLevel` enumに置き換え、DBに反映。
+        -   日記の投稿APIと一覧取得APIを`privacyLevel`に対応。
+        -   日記の投稿ページに公開レベルを選択するUIを実装。
+    -   日記の編集機能に公開レベル設定を追加。
+        -   日記の編集・取得APIを`privacyLevel`に対応。
+        -   日記の編集ページに公開レベルを変更するUIを実装。
+    -   フレンド機能の実装を開始。
+        -   `Friendship`モデルをDBに追加。
+        -   ユーザー検索API (`/api/users/search`) を作成。
+        -   フレンド管理ページ (`/friends`) を作成し、ユーザー検索UIを実装。
+        -   ヘッダーにフレンド管理ページへのリンクを追加。
+        -   `lodash`をインストールし、ビルドエラーを修正。
+    -   フレンド申請機能を追加。
+        -   フレンド申請API (`/api/friends/requests`) を作成。
+        -   ユーザー検索APIを、既に関係のあるユーザーを除外するように改修。
+        -   フレンド管理ページで、検索結果から実際にフレンド申請を送信できるようにし、UIを更新。
+    -   フレンド申請の承認・拒否機能を追加。
+        -   受信したフレンド申請一覧を取得するAPI (`GET /api/friends/requests`) を作成。
+        -   フレンド申請に応答するAPI (`PUT /api/friends/requests/[id]`) を作成。
+        -   フレンド管理ページで、受信した申請一覧の表示と、承認・拒否操作をできるようにした。
+    -   フレンド一覧表示機能を追加。
+        -   フレンド一覧を取得するAPI (`GET /api/friends`) を作成。
+        -   フレンド管理ページで、承認済みのフレンド一覧を表示するようにした。
+    -   日記の公開レベルに「フレンドのみ」を追加。
+        -   日記投稿・編集ページに「フレンドのみ」の公開設定を追加。
+        -   日記一覧取得APIを修正し、`FRIENDS_ONLY`の日記をフレンドにのみ表示するロジックを追加。
+        -   特定日記取得APIを修正し、`FRIENDS_ONLY`の日記をフレンドが閲覧できるようにするロジックを追加。
+    -   フレンド解除機能を追加。
+        -   フレンド解除API (`DELETE /api/friends/[id]`) を作成。
+        -   フレンド管理ページで、フレンド解除操作をできるようにした。
+    -   ユーザープロフィールモーダルを改善。
+        -   モーダルの「×」ボタンと背景クリックで閉じない問題を修正。
+        -   モーダルのタイトルが見えない問題を修正。
+        -   プロフィールモーダルに「〇〇さんの日記を見る」ボタンを追加し、そのユーザーの日記一覧ページへ遷移するようにした。
+        -   特定のユーザーの日記一覧ページ (`/entries/user/[id]/page.tsx`) の表示を地図からリスト形式に変更。
+    -   特定のユーザーの日記一覧ページをリスト表示に変更。
+        -   `/entries/user/[id]/page.tsx`の表示を地図からリスト形式に変更。
+        -   日記の削除機能もリスト表示に合わせて調整。
+    -   日記にカテゴリ機能を追加。
+        -   `Category`モデルをDBに追加。
+        -   カテゴリ一覧API (`/api/categories`) を作成。
+        -   日記投稿・編集APIを`categoryId`に対応。
+        -   日記検索APIを`categoryId`でフィルタリングできるように修正。
+        -   日記投稿・編集ページにカテゴリ選択UIを追加。
+    -   メインページにキーワード検索機能を追加。
+        -   日記のキーワード検索API (`/api/entries/search`) を作成。
+        -   メインページに検索バーを追加し、キーワード検索ができるようにした。
+        -   検索中のローディング表示を改善し、画面全体が暗転しないようにした。
+    -   メインページにエリア検索機能を追加。
+        -   日記検索APIを緯度・経度の範囲でフィルタリングできるように修正。
+        -   `MapComponent`に円形描画ツールを追加し、描画された範囲の座標を親コンポーネントに渡すように修正。
+        -   メインページにエリア選択をリセットするボタンを追加。
+-   **2025-08-21**
+    -   日記の検索APIを改修し、発見日（期間指定）と時間帯（朝・昼・夜）での絞り込みを可能にした。
+    -   APIのレスポンスに日記投稿者の情報（ID, 名前, アイコン）を含めるようにした。
+    -   メインページのフィルターUI（キーワード、カテゴリ、日付、時間帯）を、スライド式のサイドバーに集約した。
+    -   地図上のポップアップを改修し、投稿者のアイコンと名前（ユーザーページへのリンク付き）を表示するようにした。
+    -   ゲストログイン機能を実装し、ログインしていない状態でも公開されている日記を地図上で閲覧できるようにした。
+    -   未ログインユーザー向けのヘッダーUIを実装し、ログイン/新規登録への導線を提供した。
+    -   デフォルトアバター画像を追加し、アイコンが設定されていない場合に表示されるようにした。
+    -   ログインボタンのスタイルを改善し、視認性を向上させた。
+    -   月ごとの複数選択フィルターを追加し、年をまたいで特定の月の日記を絞り込めるようにした。
+
+## 現在の状況
+
+-   Next.jsアプリケーションの雛形が完成し、Prisma経由でデータベースに接続できる準備が整いました。
+-   データベースに`users`と`diary_entries`テーブルが作成されました。
+-   開発サーバーが正常に起動することを確認済みです。
+-   ユーザー登録・ログインのバックエンドAPIが完成しました。
+-   ユーザー登録・ログインのフロントエンドフォームが完成しました。
+-   JWTベースの認証システムとルーティング保護が実装されました。
+-   認証フローが完全に機能し、エラーメッセージも日本語で正しく表示されます。
+-   地図表示機能が再導入され、正常に動作しています。
+-   日記の投稿、編集、削除機能が実装されました。
+-   自分の日記一覧表示機能が実装されました。
+-   プロフィール編集機能と、ヘッダーでの動的アイコン表示が実装されました。
+-   日記の投稿・編集時に公開レベルを設定できるようになった。
+-   フレンド機能（申請、承認・拒否、一覧表示、解除）が実装された。
+-   日記の公開レベル「フレンドのみ」が実装された。
+-   ユーザープロフィールモーダルが改善され、ユーザーの日記一覧へのリンクが追加された。
+-   特定のユーザーの日記一覧ページがリスト表示になった。
+-   日記にカテゴリ機能が追加された。
+-   メインページにキーワード検索機能が追加された。
+-   メインページにエリア検索機能が追加された。
+-   メインページで、発見日と時間帯によるフィルター機能が利用可能になった。
+-   各種フィルター機能をサイドバーに集約し、UIを改善した。
+-   地図上のポップアップで、投稿者の情報が確認できるようになった。
+-   ゲストログイン機能が実装され、ログインせずに地図を閲覧できるようになった。
+-   未ログインユーザー向けのUIが整備された。
+-   デフォルトアバター画像が追加され、アイコン表示が改善された。
+-   ログインボタンのスタイルが改善された。
+-   月ごとの複数選択フィルターが追加され、年をまたいで特定の月の日記を絞り込めるようになった。
+-   **「いいね」機能が実装されました。**
+    -   **データベースに`Like`モデルを追加し、関連するスキーマを更新しました。**
+    -   **「いいね」の追加・解除を切り替えるトグルAPI (`/api/likes`) を実装しました。**
+    -   **日記検索APIを改修し、各日記の「いいね」情報（件数、自分が「いいね」したか）をレスポンスに含めるようにしました。**
+    -   **メインページの地図ポップアップに「いいね」ボタンと件数を表示し、クリックで楽観的更新が走るようにしました。**
+-   **実装中に発生した以下のバグを修正しました。**
+    -   **DBに`category`テーブルが存在せず、カテゴリが取得できない問題を修正しました。**
+    -   **新規投稿ページで地図コンポーネントがSSRされ、`window is not defined`エラーが発生する問題を修正しました。**
+
+## 次のステップ
+
+-   **今後の改善案**: 
+    -   コメント機能
+    -   通知機能
+    -   レスポンシブデザインの強化
+
+##コンソール上の問題
+
+Error: Route "/api/users/[id]" used `params.id`. `params` should be awaited before using its properties. Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis
+    at GET (src/app/api/users/[id]/route.ts:28:16)
+  26 |     }
+  27 |
+> 28 |     const { id: targetUserId } = context.params;
+     |                ^
+  29 |
+  30 |     const user = await prisma.user.findUnique({
+  31 |       where: { id: targetUserId },
+ GET /api/users/e087cf0c-2a2f-48ea-8764-98e4fef5bcaa 200 in 755ms
+ \UTF{2713} Compiled /entries/user/[id] in 236ms (784 modules)
+ GET /entries/user/e087cf0c-2a2f-48ea-8764-98e4fef5bcaa 200 in 545ms
+ \UTF{2713} Compiled /api/users/[id]/entries in 384ms (792 modules)
+Error: Route "/api/users/[id]" used `params.id`. `params` should be awaited before using its properties. Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis
+    at GET (src/app/api/users/[id]/route.ts:28:16)
+  26 |     }
+  27 |
+> 28 |     const { id: targetUserId } = context.params;
+     |                ^
+  29 |
+  30 |     const user = await prisma.user.findUnique({
+  31 |       where: { id: targetUserId },
+ GET /api/auth/me 200 in 468ms
+ GET /api/users/e087cf0c-2a2f-48ea-8764-98e4fef5bcaa 200 in 463ms
+Error: Route "/api/users/[id]/entries" used `params.id`. `params` should be awaited before using its properties. Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis
+    at GET (src/app/api/users/[id]/entries/route.ts:28:16)
+  26 |     }
+  27 |
+> 28 |     const { id: targetUserId } = context.params;
+     |                ^
+  29 |
+  30 |     // If fetching own entries, return all of them
+  31 |     if (targetUserId === currentUserId) {
+ GET /api/users/e087cf0c-2a2f-48ea-8764-98e4fef5bcaa/entries 200 in 734ms
+Error: Route "/api/users/[id]/entries" used `params.id`. `params` should be awaited before using its properties. Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis
+    at GET (src/app/api/users/[id]/entries/route.ts:28:16)
+  26 |     }
+  27 |
+> 28 |     const { id: targetUserId } = context.params;
+     |                ^
+  29 |
+  30 |     // If fetching own entries, return all of them
+  31 |     if (targetUserId === currentUserId) {
+ GET /api/users/e087cf0c-2a2f-48ea-8764-98e4fef5bcaa/entries 200 in 49ms
+ \UTF{2713} Compiled / in 458ms (899 modules)

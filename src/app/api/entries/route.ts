@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server';
+import { NextResponse, NextRequest } from 'next/server';
 import { PrismaClient, PrivacyLevel } from '@prisma/client';
 import { jwtVerify } from 'jose';
 import { promises as fs } from 'fs';
@@ -7,7 +7,7 @@ import path from 'path';
 const prisma = new PrismaClient();
 
 // Helper function to verify JWT and get userId
-async function getUserIdFromToken(request: Request): Promise<string | null> {
+async function getUserIdFromToken(request: NextRequest): Promise<string | null> {
   const token = request.cookies.get('auth_token')?.value;
   const jwtSecret = process.env.JWT_SECRET;
 
@@ -19,11 +19,12 @@ async function getUserIdFromToken(request: Request): Promise<string | null> {
     const { payload } = await jwtVerify(token, new TextEncoder().encode(jwtSecret));
     return payload.userId as string;
   } catch (error) {
+    console.error("JWT verification error:", error);
     return null;
   }
 }
 
-export async function GET(request: Request) {
+export async function GET(request: NextRequest) {
   try {
     const userId = await getUserIdFromToken(request);
 
@@ -44,7 +45,7 @@ export async function GET(request: Request) {
         },
       });
 
-      const friendIds = friendships.map(f => 
+      const friendIds = friendships.map((f: { requesterId: string; addresseeId: string; }) => 
         f.requesterId === userId ? f.addresseeId : f.requesterId
       );
 
@@ -76,7 +77,7 @@ export async function GET(request: Request) {
   }
 }
 
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
   try {
     const token = request.cookies.get('auth_token')?.value;
     const jwtSecret = process.env.JWT_SECRET;
@@ -90,6 +91,7 @@ export async function POST(request: Request) {
       const { payload } = await jwtVerify(token, new TextEncoder().encode(jwtSecret));
       userId = payload.userId as string;
     } catch (error) {
+      console.error("Authentication token error:", error);
       return NextResponse.json({ message: '認証トークンが無効です' }, { status: 401 });
     }
 
