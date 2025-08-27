@@ -27,7 +27,7 @@ async function getUserIdFromToken(request: NextRequest): Promise<string | null> 
 // GET method to fetch a single diary entry by ID
 export async function GET(request: NextRequest, context: { params: { id: string } }) {
   try {
-    const { id } = context.params;
+    const { id } = await context.params;
 
     const entry = await prisma.diaryEntry.findUnique({
       where: { id },
@@ -81,7 +81,7 @@ export async function GET(request: NextRequest, context: { params: { id: string 
 
 export async function PUT(request: NextRequest, context: { params: { id: string } }) {
   try {
-    const { id } = context.params;
+    const { id } = await context.params;
     const userId = await getUserIdFromToken(request); // 認証と権限の確認
 
     if (!userId) {
@@ -159,5 +159,48 @@ export async function PUT(request: NextRequest, context: { params: { id: string 
   } catch (error) {
     console.error('日記更新エラー:', error);
     return NextResponse.json({ message: '日記の更新中にエラーが発生しました' }, { status: 500 });
+  }
+}
+
+export async function DELETE(request: NextRequest, context: { params: { id: string } }) {
+  try {
+    const { id } = await context.params;
+    const userId = await getUserIdFromToken(request);
+
+    if (!userId) {
+      return NextResponse.json({ message: '認証が必要です' }, { status: 401 });
+    }
+
+    const entryToDelete = await prisma.diaryEntry.findUnique({
+      where: { id },
+    });
+
+    if (!entryToDelete) {
+      return NextResponse.json({ message: '日記が見つかりません' }, { status: 404 });
+    }
+
+    if (entryToDelete.userId !== userId) {
+      return NextResponse.json({ message: 'この日記を削除する権限がありません' }, { status: 403 });
+    }
+
+    // Delete associated image file if it exists
+    if (entryToDelete.imageUrl) {
+      const imagePath = path.join(process.cwd(), 'public', entryToDelete.imageUrl);
+      try {
+        await fs.unlink(imagePath);
+      } catch (unlinkError) {
+        console.error('Failed to delete image file:', unlinkError);
+        // Continue with database deletion even if file deletion fails
+      }
+    }
+
+    await prisma.diaryEntry.delete({
+      where: { id },
+    });
+
+    return NextResponse.json({ message: '日記が正常に削除されました' }, { status: 200 });
+  } catch (error) {
+    console.error('日記削除エラー:', error);
+    return NextResponse.json({ message: '日記の削除中にエラーが発生しました' }, { status: 500 });
   }
 }
