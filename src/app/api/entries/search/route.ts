@@ -23,6 +23,24 @@ export async function GET(request: NextRequest) {
     const userId = await getUserIdFromToken(request); // ゲストの場合はnullになります
 
     let friendIds: string[] = [];
+    let hiddenEntryIds: string[] = [];
+    let hiddenUserIds: string[] = [];
+
+    if (userId) {
+      // 非表示の投稿IDを取得
+      const hiddenEntries = await prisma.hiddenEntry.findMany({
+        where: { userId: userId },
+        select: { entryId: true },
+      });
+      hiddenEntryIds = hiddenEntries.map((he) => he.entryId);
+
+      // 非表示のユーザーIDを取得
+      const hiddenUsers = await prisma.hiddenUser.findMany({
+        where: { userId: userId },
+        select: { hiddenUserId: true },
+      });
+      hiddenUserIds = hiddenUsers.map((hu) => hu.hiddenUserId);
+    }
 
     const { searchParams } = new URL(request.url);
     const query = searchParams.get('q');
@@ -39,6 +57,18 @@ export async function GET(request: NextRequest) {
     const whereConditions: Prisma.DiaryEntryWhereInput = {
       AND: [],
     };
+
+    // --- 非表示フィルターのロジック ---
+    if (hiddenEntryIds.length > 0) {
+      (whereConditions.AND as Prisma.DiaryEntryWhereInput[]).push({
+        id: { notIn: hiddenEntryIds },
+      });
+    }
+    if (hiddenUserIds.length > 0) {
+      (whereConditions.AND as Prisma.DiaryEntryWhereInput[]).push({
+        userId: { notIn: hiddenUserIds },
+      });
+    }
 
     // --- プライバシーフィルターのロジック ---
     if (userId) {
@@ -151,7 +181,7 @@ export async function GET(request: NextRequest) {
     
 
     // Calculate isFriend for each entry
-    const processedEntries = entries.map(entry => ({
+    let processedEntries = entries.map(entry => ({
       ...entry,
       isFriend: userId ? friendIds.includes(entry.userId) : false,
       likesCount: entry.likes.length,

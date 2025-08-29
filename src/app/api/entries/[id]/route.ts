@@ -25,9 +25,9 @@ async function getUserIdFromToken(request: NextRequest): Promise<string | null> 
 }
 
 // GET method to fetch a single diary entry by ID
-export async function GET(request: NextRequest, context: { params: { id: string } }) {
+export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
   try {
-    const { id } = await context.params;
+    const { id } = params;
 
     const entry = await prisma.diaryEntry.findUnique({
       where: { id },
@@ -79,9 +79,9 @@ export async function GET(request: NextRequest, context: { params: { id: string 
 
 }
 
-export async function PUT(request: NextRequest, context: { params: { id: string } }) {
+export async function PUT(request: NextRequest, { params }: { params: { id: string } }) {
   try {
-    const { id } = await context.params;
+    const { id } = params;
     const userId = await getUserIdFromToken(request); // 認証と権限の確認
 
     if (!userId) {
@@ -162,9 +162,9 @@ export async function PUT(request: NextRequest, context: { params: { id: string 
   }
 }
 
-export async function DELETE(request: NextRequest, context: { params: { id: string } }) {
+export async function DELETE(request: NextRequest, { params }: { params: { id: string } }) {
   try {
-    const { id } = await context.params;
+    const { id } = params;
     const userId = await getUserIdFromToken(request);
 
     if (!userId) {

@@ -277,6 +277,14 @@ export default function HomePage() {
     }
   };
 
+  const handleHideEntry = (entryId: string) => {
+    setEntries(prevEntries => prevEntries.filter(entry => entry.id !== entryId));
+  };
+
+  const handleHideUser = (userId: string) => {
+    setEntries(prevEntries => prevEntries.filter(entry => entry.userId !== userId));
+  };
+
   if (!isClient || initialLoading || userLocation === null) {
     return <div className="min-h-screen flex items-center justify-center">地図を読み込み中...</div>;
   }
@@ -337,7 +345,9 @@ export default function HomePage() {
             currentUserId={currentUser?.id || null} 
             onDelete={handleDelete} 
             onLikeToggle={onLikeToggle}
-            onBoundsChange={handleBoundsChange} 
+            onBoundsChange={handleBoundsChange}
+            onHideEntry={handleHideEntry}
+            onHideUser={handleHideUser}
         />
 
         {/* エラーメッセージの表示 */}

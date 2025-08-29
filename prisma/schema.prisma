@@ -11,17 +11,20 @@ datasource db {
 }
 
 model User {
-  id                     String        @id @default(uuid())
-  username               String        @unique
-  email                  String        @unique
-  password_hash          String
-  description            String?
-  iconUrl                String?
-  created_at             DateTime      @default(now())
-  diaryEntries           DiaryEntry[]
-  sentFriendRequests     Friendship[]  @relation("sentRequests")
-  receivedFriendRequests Friendship[]  @relation("receivedRequests")
-  likes                  Like[]
+  id                       String        @id @default(uuid())
+  username                 String        @unique
+  email                    String        @unique
+  password_hash            String
+  description              String?
+  iconUrl                  String?
+  created_at               DateTime      @default(now())
+  diaryEntries             DiaryEntry[]
+  sentFriendRequests       Friendship[]  @relation("sentRequests")
+  receivedFriendRequests   Friendship[]  @relation("receivedRequests")
+  likes                    Like[]
+  hidingEntries            HiddenEntry[] @relation("hidingUser")
+  hidingUsers              HiddenUser[]  @relation("hidingUserRelation")
+  hiddenByUsers            HiddenUser[]  @relation("hiddenUserRelation")
 }
 
 model DiaryEntry {
@@ -40,6 +43,7 @@ model DiaryEntry {
   categoryId   String?
   category     Category?    @relation(fields: [categoryId], references: [id])
   likes        Like[]
+  hiddenBy     HiddenEntry[]
 
   @@index([categoryId]) // Add index for categoryId
 }
@@ -94,4 +98,32 @@ model Like {
   @@unique([userId, diaryEntryId]) // ユーザーが同じ投稿に複数回いいねできないようにする
   @@index([userId])
   @@index([diaryEntryId])
+}
+
+model HiddenEntry {
+  id        String   @id @default(uuid())
+  userId    String // ユーザー
+  entryId   String // 日記
+  createdAt DateTime @default(now())
+
+  user  User @relation("hidingUser", fields: [userId], references: [id], onDelete: Cascade)
+  entry DiaryEntry @relation(fields: [entryId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, entryId])
+  @@index([userId])
+  @@index([entryId])
+}
+
+model HiddenUser {
+  id           String   @id @default(uuid())
+  userId       String // 非表示にしたユーザー
+  hiddenUserId String // 非表示にされたユーザー
+  createdAt    DateTime @default(now())
+
+  user       User @relation("hidingUserRelation", fields: [userId], references: [id], onDelete: Cascade)
+  hiddenUser User @relation("hiddenUserRelation", fields: [hiddenUserId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, hiddenUserId])
+  @@index([userId])
+  @@index([hiddenUserId])
 }

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useCallback } from 'react'; // Added useCallback
+import { useEffect, useMemo, useCallback, useState, useRef } from 'react'; // Added useState, useRef
 import { MapContainer, TileLayer, Marker, Popup, useMap, useMapEvents } from 'react-leaflet';
 import L from 'leaflet';
 import Link from 'next/link';
@@ -49,7 +49,7 @@ interface DiaryEntry {
   };
   likesCount: number;
   isLikedByCurrentUser: boolean;
-  isFriend: boolean; // Add this line
+  isFriend: boolean;
 }
 
 interface MapComponentProps {
@@ -59,9 +59,14 @@ interface MapComponentProps {
   onDelete: (id: string) => void;
   onLikeToggle: (id: string) => void;
   onBoundsChange: (bounds: { minLat: number; maxLat: number; minLng: number; maxLng: number } | null) => void;
+  onHideEntry: (entryId: string) => void;
+  onHideUser: (userId: string) => void;
 }
 
-export default function MapComponent({ userLocation, entries, currentUserId, onDelete, onLikeToggle, onBoundsChange }: MapComponentProps) {
+export default function MapComponent({ userLocation, entries, currentUserId, onDelete, onLikeToggle, onBoundsChange, onHideEntry, onHideUser }: MapComponentProps) {
+  const [hidingMenuEntryId, setHidingMenuEntryId] = useState<string | null>(null);
+  const popupRef = useRef<L.Popup>(null);
+
   useEffect(() => {
     if (typeof window !== 'undefined') {
       // @ts-expect-error Leaflet's type definition is missing _getIconUrl, but it's needed for image icons to work correctly.
@@ -74,79 +79,65 @@ export default function MapComponent({ userLocation, entries, currentUserId, onD
     }
   }, []);
 
-  const myPostIcon = useMemo(() => {
-    return new L.Icon({
-      iconUrl: 'https://unpkg.com/leaflet@1.7.1/dist/images/marker-icon.png', // Blue
-      iconRetinaUrl: 'https://unpkg.com/leaflet@1.7.1/dist/images/marker-icon-2x.png',
-      shadowUrl: 'https://unpkg.com/leaflet@1.7.1/dist/images/marker-shadow.png',
-      iconSize: [25, 41],
-      iconAnchor: [12, 41],
-      popupAnchor: [1, -34],
-      shadowSize: [41, 41]
-    });
-  }, []);
+  useEffect(() => {
+    if (popupRef.current) {
+      popupRef.current.on('remove', () => {
+        setHidingMenuEntryId(null);
+      });
+    }
+  }, [popupRef]);
 
-  const publicPostIcon = useMemo(() => {
-    return new L.Icon({
-      iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-green.png', // Green
-      iconRetinaUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-green.png',
-      shadowUrl: 'https://unpkg.com/leaflet@1.7.1/dist/images/marker-shadow.png',
-      iconSize: [25, 41],
-      iconAnchor: [12, 41],
-      popupAnchor: [1, -34],
-      shadowSize: [41, 41]
-    });
-  }, []);
-
-  const friendsOnlyPostIcon = useMemo(() => {
-    return new L.Icon({
-      iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-red.png', // Change to Red
-      iconRetinaUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-red.png',
-      shadowUrl: 'https://unpkg.com/leaflet@1.7.1/dist/images/marker-shadow.png',
-      iconSize: [25, 41],
-      iconAnchor: [12, 41],
-      popupAnchor: [1, -34],
-      shadowSize: [41, 41]
-    });
-  }, []);
-
-  const otherPostIcon = useMemo(() => {
-    return new L.Icon({
-      iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-grey.png', // Change to Grey
-      iconRetinaUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-grey.png',
-      shadowUrl: 'https://unpkg.com/leaflet@1.7.1/dist/images/marker-shadow.png',
-      iconSize: [25, 41],
-      iconAnchor: [12, 41],
-      popupAnchor: [1, -34],
-      shadowSize: [41, 41]
-    });
-  }, []);
-
-  // Private posts by others should not be visible, so no icon needed for them.
-  // If a private post by the current user is shown, it will use myPostIcon.
+  const myPostIcon = useMemo(() => new L.Icon({ iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-blue.png', iconRetinaUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-blue.png', shadowUrl: 'https://unpkg.com/leaflet@1.7.1/dist/images/marker-shadow.png', iconSize: [25, 41], iconAnchor: [12, 41], popupAnchor: [1, -34], shadowSize: [41, 41] }), []);
+  const publicPostIcon = useMemo(() => new L.Icon({ iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-green.png', iconRetinaUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-green.png', shadowUrl: 'https://unpkg.com/leaflet@1.7.1/dist/images/marker-shadow.png', iconSize: [25, 41], iconAnchor: [12, 41], popupAnchor: [1, -34], shadowSize: [41, 41] }), []);
+  const friendsOnlyPostIcon = useMemo(() => new L.Icon({ iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-orange.png', iconRetinaUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-orange.png', shadowUrl: 'https://unpkg.com/leaflet@1.7.1/dist/images/marker-shadow.png', iconSize: [25, 41], iconAnchor: [12, 41], popupAnchor: [1, -34], shadowSize: [41, 41] }), []);
+  const otherPostIcon = useMemo(() => new L.Icon({ iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-grey.png', iconRetinaUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-grey.png', shadowUrl: 'https://unpkg.com/leaflet@1.7.1/dist/images/marker-shadow.png', iconSize: [25, 41], iconAnchor: [12, 41], popupAnchor: [1, -34], shadowSize: [41, 41] }), []);
 
   const getMarkerIcon = useCallback((entry: DiaryEntry) => {
-    
-
-    if (currentUserId === entry.userId) {
-      return myPostIcon; // Always blue for my own posts
-    }
-
-    if (entry.privacyLevel === 'PUBLIC') {
-      return publicPostIcon; // Green for public posts by others
-    }
-
-    if (entry.privacyLevel === 'FRIENDS_ONLY' && entry.isFriend) {
-      return friendsOnlyPostIcon; // Orange for friends-only posts by friends
-    }
-
-    // Fallback for any other case (e.g., private posts by others, or friends-only by non-friends)
-    // These should ideally not be rendered on the map if privacy is respected.
-    // If they are rendered due to some logic, they will use a default or a specific "restricted" icon.
-    // For now, let's return a default (e.g., red) if somehow they slip through and are not public/friends.
-    return otherPostIcon; // Red for others' posts that don't fit above criteria (e.g., private, or friends-only by non-friends)
+    if (currentUserId === entry.userId) return myPostIcon;
+    if (entry.privacyLevel === 'PUBLIC') return publicPostIcon;
+    if (entry.privacyLevel === 'FRIENDS_ONLY' && entry.isFriend) return friendsOnlyPostIcon;
+    return otherPostIcon;
   }, [currentUserId, myPostIcon, publicPostIcon, friendsOnlyPostIcon, otherPostIcon]);
 
+  const handleHideEntry = async (entryId: string) => {
+    if (window.confirm('この投稿を非表示にしますか？この操作は元に戻せません。')) {
+      try {
+        const res = await fetch('/api/hidden-entries', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ entryId }),
+        });
+        if (res.ok) {
+          onHideEntry(entryId);
+          setHidingMenuEntryId(null);
+        } else {
+          alert('投稿の非表示に失敗しました。');
+        }
+      } catch (error) {
+        alert('エラーが発生しました。');
+      }
+    }
+  };
+
+  const handleHideUser = async (userId: string, username: string) => {
+    if (window.confirm(`${username}さんのすべての投稿を非表示にしますか？この操作は元に戻せません。`)) {
+      try {
+        const res = await fetch('/api/hidden-users', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ hiddenUserId: userId }),
+        });
+        if (res.ok) {
+          onHideUser(userId);
+          setHidingMenuEntryId(null);
+        } else {
+          alert('ユーザーの非表示に失敗しました。');
+        }
+      } catch (error) {
+        alert('エラーが発生しました。');
+      }
+    }
+  };
 
   return (
     <div className="h-full w-full">
@@ -162,12 +153,11 @@ export default function MapComponent({ userLocation, entries, currentUserId, onD
           <Marker 
             key={entry.id} 
             position={[entry.latitude, entry.longitude]}
-            icon={getMarkerIcon(entry)} // Use the new function here
+            icon={getMarkerIcon(entry)}
           >
-            <Popup>
+            <Popup ref={popupRef}>
               <div className="font-sans w-64">
-                {/* User Info */}
-                <div className="flex items-center mb-2 border-b pb-2">
+                <div className="flex items-center justify-between mb-2 border-b pb-2">
                   <Link href={`/entries/user/${entry.user.id}`} className="flex items-center space-x-2 hover:opacity-80 transition-opacity">
                     <Image 
                       src={entry.user.iconUrl || '/default-avatar.svg'}
@@ -178,9 +168,25 @@ export default function MapComponent({ userLocation, entries, currentUserId, onD
                     />
                     <span className="font-semibold text-gray-800">{entry.user.username}</span>
                   </Link>
+                  {currentUserId && currentUserId !== entry.userId && (
+                    <div className="relative">
+                      <button onClick={() => setHidingMenuEntryId(hidingMenuEntryId === entry.id ? null : entry.id)} className="p-1 rounded-full hover:bg-gray-200">
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-600" viewBox="0 0 20 20" fill="currentColor">
+                          <path d="M10 6a2 2 0 110-4 2 2 0 010 4zM10 12a2 2 0 110-4 2 2 0 010 4zM10 18a2 2 0 110-4 2 2 0 010 4z" />
+                        </svg>
+                      </button>
+                      {hidingMenuEntryId === entry.id && (
+                        <div className="absolute right-0 mt-2 w-56 bg-white rounded-md shadow-lg z-10 ring-1 ring-black ring-opacity-5">
+                          <div className="py-1">
+                            <button onClick={() => handleHideEntry(entry.id)} className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">この投稿を非表示</button>
+                            <button onClick={() => handleHideUser(entry.user.id, entry.user.username)} className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">{entry.user.username}さんの投稿をすべて非表示</button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
 
-                {/* Entry Info */}
                 <h3 className="text-lg font-bold text-gray-900 mb-1">{entry.title}</h3>
                 {entry.imageUrl && (
                   <a href={entry.imageUrl} target="_blank" rel="noopener noreferrer">
@@ -190,7 +196,6 @@ export default function MapComponent({ userLocation, entries, currentUserId, onD
                 <p className="text-gray-700 text-sm mb-2">{entry.description || '説明なし'}</p>
                 <p className="text-gray-500 text-xs mb-1">発見日時: {new Date(entry.takenAt).toLocaleString()}</p>
                 
-                {/* Like Button */}
                 <div className="mt-3 flex items-center space-x-2">
                   <button
                     onClick={() => onLikeToggle(entry.id)}
@@ -208,7 +213,6 @@ export default function MapComponent({ userLocation, entries, currentUserId, onD
                   </button>
                 </div>
 
-                {/* Action Buttons for Owner */}
                 {currentUserId === entry.userId && (
                   <div className="mt-3 flex space-x-2">
                     <Link href={`/entries/edit/${entry.id}`} className="px-3 py-1 bg-indigo-600 rounded-md text-sm hover:bg-indigo-700">
