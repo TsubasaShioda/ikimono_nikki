@@ -100,7 +100,7 @@ export default function MapComponent({ userLocation, entries, currentUserId, onD
   }, [currentUserId, myPostIcon, publicPostIcon, friendsOnlyPostIcon, otherPostIcon]);
 
   const handleHideEntry = async (entryId: string) => {
-    if (window.confirm('この投稿を非表示にしますか？この操作は元に戻せません。')) {
+    if (window.confirm('この投稿を非表示にしますか？非表示にした投稿はフレンド管理ページから再表示できます。')) {
       try {
         const res = await fetch('/api/hidden-entries', {
           method: 'POST',
@@ -120,7 +120,7 @@ export default function MapComponent({ userLocation, entries, currentUserId, onD
   };
 
   const handleHideUser = async (userId: string, username: string) => {
-    if (window.confirm(`${username}さんのすべての投稿を非表示にしますか？この操作は元に戻せません。`)) {
+    if (window.confirm(`${username}さんのすべての投稿を非表示にしますか？非表示にしたユーザーはフレンド管理ページから再表示できます。`)) {
       try {
         const res = await fetch('/api/hidden-users', {
           method: 'POST',

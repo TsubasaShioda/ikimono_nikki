@@ -1,3 +1,4 @@
+
 # プロジェクト進捗ログ
 
 ## これまでの進捗サマリー
@@ -112,6 +113,25 @@
     -   デフォルトアバター画像を追加し、アイコンが設定されていない場合に表示されるようにした。
     -   ログインボタンのスタイルを改善し、視認性を向上させた。
     -   月ごとの複数選択フィルターを追加し、年をまたいで特定の月の日記を絞り込めるようにした。
+-   **2025-08-28**
+    -   投稿の非表示機能の実装と関連修正。
+    -   投稿を非表示にするAPI (`/api/hidden-entries`) を作成。
+    -   データベースに`HiddenEntry`モデル（投稿単位の非表示）と`HiddenUser`モデル（ユーザー単位の非表示）を追加。
+    -   `MapComponent.tsx`に非表示メニューのUIとロジックを追加。
+    -   Next.jsのバージョンを`14.2.25`にダウングレード。
+    -   ユーザーを非表示にするAPI (`/api/hidden-users`) を作成。
+    -   日記一覧取得API (`/api/entries/search`) を改修し、非表示設定を反映するようにした。
+    -   `page.tsx`に非表示処理のコールバック関数 (`handleHideEntry`) を追加。
+    -   ReactとReact DOMのバージョンを`18.2.0`にダウングレード。
+    -   `react-leaflet`のバージョンを`4.1.0`にダウングレード。
+    -   ビルドが成功したことを確認。
+    -   `MapComponent.tsx`の`Popup`コンポーネントの`onClose`プロパティを削除し、`useRef`と`useEffect`で`remove`イベントをリッスンするように修正。
+    -   `hidden-entries`と`hidden-users`のAPIハンドラをClerkに依存しないカスタムJWT認証を使用するように修正。
+    -   フレンド管理ページから非表示ユーザーを再表示する機能を追加。
+    -   非表示時の警告文を「フレンド管理のページから非表示一覧で直せます」という内容に変更。
+    -   非表示解除API (`DELETE /api/hidden-users/[id]`) を追加。
+    -   非表示ユーザー一覧取得API (`GET /api/hidden-users`) を追加。
+    -   フレンド管理ページ (`src/app/friends/page.tsx`) に非表示ユーザー一覧表示と解除ボタンを追加。
 
 ## 現在の状況
 
@@ -152,19 +172,27 @@
     -   **新規投稿ページで地図コンポーネントがSSRされ、`window is not defined`エラーが発生する問題を修正しました。**
 -  ピンの色設定を追加しました
 -  日記削除機能の追加とAPIルートの改善をしました
- * HiddenEntryとHiddenUserモデルの追加。
-       * 非表示APIの作成（/api/hidden-entries、/api/hidden-users）。
-       * 日記検索APIの改修（非表示の投稿・ユーザーを除外）。
-       * MapComponent.tsxへの非表示UIとロジックの追加。
-       * page.tsxへの非表示コールバック関数の追加。
-       * Next.js、React、react-leafletのバージョン変更。
-       * ビルドの成功と、ランタイムエラーTypeError: render is not a functionの発生、およびそのデバッグ状況。
-       * Clerkのエラーと、それに対するAPIハンドラの修正。
+ -   **2025-08-28**
+    -   **投稿の非表示機能の実装を開始。**
+        -   データベースに`HiddenEntry`モデル（投稿単位の非表示）と`HiddenUser`モデル（ユーザー単位の非表示）を追加。
+        -   投稿を非表示にするAPI (`/api/hidden-entries`) を作成。
+        -   ユーザーを非表示にするAPI (`/api/hidden-users`) を作成。
+        -   日記一覧取得API (`/api/entries/search`) を改修し、非表示設定を反映するようにした。
+        -   `MapComponent.tsx`に非表示メニューのUIとロジックを追加。
+        -   `page.tsx`に非表示処理のコールバック関数 (`handleHideEntry`, `handleHideUser`) を追加し、`MapComponent`に渡すようにした。
+        -   Next.jsのバージョンを`14.2.25`にダウングレード。
+        -   ReactとReact DOMのバージョンを`18.2.0`にダウングレード。
+        -   `react-leaflet`のバージョンを`4.1.0`にダウングレード。
+        -   ビルドが成功したことを確認。
+        -   **ランタイムエラー `TypeError: render is not a function` が発生し、`MapComponent.tsx`の`Popup`コンポーネントの`onClose`プロパティを削除し、`useRef`と`useEffect`で`remove`イベントをリッスンするように修正。**
+        -   **Clerk認証エラーが発生し、`hidden-entries`と`hidden-users`のAPIハンドラをClerkに依存しないカスタムJWT認証を使用するように修正。**
 
 ## 次のステップ
 
 -   **今後の改善案**: 
     -　特定のユーザ、投稿の非表示機能（非表示を押した際に選択できるようにし、警告の工程を挟むこと）
+    -　フレンド、非表示ユーザのリスト表示（いいね機能の隣に追加でしおりの数を表示、追加したユーザはしおりの種類を分けて、しおりの項目からしおりのタグ付でフォルダ分けされたものを見ることができる）
+    -　しおり機能　自分や他人の投稿をフォルダ分けすることができる
     -　公開範囲の再設定（フレンドには詳しく、その他には軽く表示）
     -　ログアウトの警告
     -   コメント機能

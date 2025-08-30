@@ -12,6 +12,7 @@ interface UserProfile {
   username: string;
   iconUrl: string | null;
   description?: string | null;
+  hiddenId?: string; // 非表示設定のIDを追加
 }
 
 interface FriendRequest {
@@ -84,6 +85,9 @@ export default function FriendsPage() {
   const [friends, setFriends] = useState<Friend[]>([]);
   const [loadingFriends, setLoadingFriends] = useState(true);
 
+  const [hiddenUsers, setHiddenUsers] = useState<UserProfile[]>([]);
+  const [loadingHiddenUsers, setLoadingHiddenUsers] = useState(true);
+
   const [selectedUserForProfile, setSelectedUserForProfile] = useState<UserProfile | null>(null);
 
   const router = useRouter();
@@ -109,10 +113,27 @@ export default function FriendsPage() {
     finally { setLoadingFriends(false); }
   }, []);
 
+  const fetchHiddenUsers = useCallback(async () => {
+    setLoadingHiddenUsers(true);
+    try {
+      const response = await fetch('/api/hidden-users');
+      const data = await response.json();
+      if (response.ok) {
+        // hiddenUsersはhiddenUserオブジェクトを持つ配列なので、UserProfile[]に変換
+        setHiddenUsers(data.hiddenUsers.map((hu: any) => ({ ...hu.hiddenUser, hiddenId: hu.id })));
+      }
+    } catch (err) {
+      console.error('Failed to fetch hidden users', err);
+    } finally {
+      setLoadingHiddenUsers(false);
+    }
+  }, []);
+
   useEffect(() => {
     fetchFriendRequests();
     fetchFriends();
-  }, [fetchFriendRequests, fetchFriends]);
+    fetchHiddenUsers();
+  }, [fetchFriendRequests, fetchFriends, fetchHiddenUsers]);
 
   // --- SEARCH LOGIC ---
   const fetchUsers = async (query: string) => {
@@ -210,6 +231,25 @@ export default function FriendsPage() {
     }
   };
 
+  const handleUnhideUser = async (hiddenUserId: string) => {
+    if (!window.confirm('本当にこのユーザーの非表示設定を解除しますか？')) return;
+    try {
+      const response = await fetch(`/api/hidden-users/${hiddenUserId}`, {
+        method: 'DELETE',
+      });
+      if (response.ok) {
+        setHiddenUsers((prev) => prev.filter((user) => user.id !== hiddenUserId));
+        alert('ユーザーの非表示設定を解除しました。');
+      } else {
+        const data = await response.json();
+        alert(`非表示解除エラー: ${data.message || '不明なエラー'}`);
+      }
+    } catch (err) {
+      console.error('非表示解除エラー:', err);
+      alert('非表示解除中にエラーが発生しました。');
+    }
+  };
+
   const handleViewProfile = async (userId: string) => {
     try {
       const response = await fetch(`/api/users/${userId}`);
@@ -295,6 +335,30 @@ export default function FriendsPage() {
             </div>
           ) : (
             <p className="text-gray-500 italic">まだフレンドはいません。</p>
+          )}
+        </section>
+
+        {/* Hidden Users Section */}
+        <section className="mb-8">
+          <h2 className="text-2xl font-semibold text-gray-800 mb-4">非表示中のユーザー</h2>
+          {loadingHiddenUsers ? (
+            <p className="text-gray-500">読み込み中...</p>
+          ) : hiddenUsers.length > 0 ? (
+            <div className="space-y-3">
+              {hiddenUsers.map((user) => (
+                <div key={user.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-md">
+                  <div className="flex items-center cursor-pointer" onClick={() => handleViewProfile(user.id)}>
+                    <div className="w-10 h-10 rounded-full overflow-hidden bg-gray-200 flex items-center justify-center">
+                      {user.iconUrl ? <Image src={user.iconUrl} alt="" width={40} height={40} className="w-full h-full object-cover" /> : <svg className="w-8 h-8 text-gray-500" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd"></path></svg>}
+                    </div>
+                    <span className="ml-4 font-medium text-gray-800">{user.username}</span>
+                  </div>
+                  <button onClick={() => handleUnhideUser(user.hiddenId!)} className="px-3 py-1.5 bg-blue-600 text-white text-sm font-semibold rounded-md hover:bg-blue-700">非表示解除</button>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-gray-500 italic">非表示中のユーザーはいません。</p>
           )}
         </section>
 

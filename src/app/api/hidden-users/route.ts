@@ -69,3 +69,35 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'サーバーエラーが発生しました' }, { status: 500 });
   }
 }
+
+export async function GET(req: NextRequest) {
+  console.log('GET /api/hidden-users received');
+  try {
+    const userId = await getUserIdFromToken(req);
+
+    if (!userId) {
+      console.log('GET /api/hidden-users: User not authenticated');
+      return NextResponse.json({ error: '認証が必要です' }, { status: 401 });
+    }
+
+    const hiddenUsers = await prisma.hiddenUser.findMany({
+      where: { userId },
+      select: {
+        id: true, // HiddenUserレコード自体のIDも選択
+        hiddenUser: {
+          select: {
+            id: true,
+            username: true,
+            iconUrl: true,
+          },
+        },
+      },
+    });
+
+    console.log('GET /api/hidden-users: Found hidden users', hiddenUsers.length);
+    return NextResponse.json({ hiddenUsers }, { status: 200 });
+  } catch (error) {
+    console.error('Error fetching hidden users:', error);
+    return NextResponse.json({ error: 'サーバーエラーが発生しました' }, { status: 500 });
+  }
+}
