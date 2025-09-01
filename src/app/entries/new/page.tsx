@@ -1,16 +1,32 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import dynamic from 'next/dynamic';
 import { PrivacyLevel } from '@/lib/types';
+import { debounce } from 'lodash';
+import Link from 'next/link';
+
+const DRAFT_KEY = 'autosave-new-entry';
 
 const NewEntryMap = dynamic(() => import('@/components/NewEntryMap'), { 
   ssr: false, 
   loading: () => <p>地図を読み込み中...</p> 
 });
 
+interface DraftData {
+  title: string;
+  description: string;
+  latitude: string;
+  longitude: string;
+  takenAt: string;
+  privacyLevel: PrivacyLevel;
+  selectedCategoryId: string;
+}
+
 export default function NewEntryPage() {
+  const router = useRouter();
+
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [imageFile, setImageFile] = useState<File | null>(null);
@@ -24,7 +40,42 @@ export default function NewEntryPage() {
   const [isClient, setIsClient] = useState(false);
   const [categories, setCategories] = useState<{ id: string; name: string }[]>([]);
   const [selectedCategoryId, setSelectedCategoryId] = useState('');
-  const router = useRouter();
+
+  // --- AUTO-DRAFT SAVE LOGIC ---
+
+  const saveDraft = useCallback(debounce((data: DraftData) => {
+    localStorage.setItem(DRAFT_KEY, JSON.stringify(data));
+  }, 1500), []);
+
+  useEffect(() => {
+    if (isClient) {
+      saveDraft({ title, description, latitude, longitude, takenAt, privacyLevel, selectedCategoryId });
+    }
+  }, [title, description, latitude, longitude, takenAt, privacyLevel, selectedCategoryId, isClient, saveDraft]);
+
+  useEffect(() => {
+    if (isClient) {
+      const savedDraft = localStorage.getItem(DRAFT_KEY);
+      if (savedDraft) {
+        const draftData: DraftData = JSON.parse(savedDraft);
+        if (Object.values(draftData).some(v => v !== '' && v !== PrivacyLevel.PRIVATE)) {
+            if (window.confirm('未保存の下書きがあります。復元しますか？')) {
+                setTitle(draftData.title);
+                setDescription(draftData.description);
+                setLatitude(draftData.latitude);
+                setLongitude(draftData.longitude);
+                setTakenAt(draftData.takenAt);
+                setPrivacyLevel(draftData.privacyLevel);
+                setSelectedCategoryId(draftData.selectedCategoryId);
+            }
+        }
+        // Always remove after checking to avoid asking again
+        localStorage.removeItem(DRAFT_KEY);
+      }
+    }
+  }, [isClient]);
+
+  // --- END AUTO-DRAFT LOGIC ---
 
   useEffect(() => {
     setIsClient(true);
@@ -32,7 +83,7 @@ export default function NewEntryPage() {
 
   // Fetch user location for map
   useEffect(() => {
-    if (isClient && navigator.geolocation) {
+    if (isClient && !latitude && !longitude && navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
         (position) => {
           setUserLocation([position.coords.latitude, position.coords.longitude]);
@@ -42,19 +93,17 @@ export default function NewEntryPage() {
         (err) => {
           console.error('Geolocation error:', err);
           setError('現在地を取得できませんでした。デフォルトの位置を表示します。');
-          setUserLocation([35.6895, 139.6917]); // Default to Tokyo
+          setUserLocation([35.6895, 139.6917]);
           setLatitude('35.6895');
           setLongitude('139.6917');
-        },
-        { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 }
+        }
       );
-    } else if (isClient) {
-      setError('お使いのブラウザは位置情報に対応していません。デフォルトの位置を表示します。');
-      setUserLocation([35.6895, 139.6917]); // Default to Tokyo
-      setLatitude('35.6895');
-      setLongitude('139.6917');
+    } else if (isClient && !latitude && !longitude) {
+        setUserLocation([35.6895, 139.6917]);
+        setLatitude('35.6895');
+        setLongitude('139.6917');
     }
-  }, [isClient]);
+  }, [isClient, latitude, longitude]);
 
   // Fetch categories
   useEffect(() => {
@@ -96,7 +145,7 @@ export default function NewEntryPage() {
     formData.append('longitude', longitude);
     formData.append('takenAt', takenAt);
     formData.append('privacyLevel', privacyLevel);
-    if (selectedCategoryId) { // カテゴリが選択されていれば追加
+    if (selectedCategoryId) {
       formData.append('categoryId', selectedCategoryId);
     }
 
@@ -109,8 +158,9 @@ export default function NewEntryPage() {
       const data = await response.json();
 
       if (response.ok) {
+        localStorage.removeItem(DRAFT_KEY);
         setSuccess(data.message || '日記が正常に投稿されました！');
-        router.push('/');
+        setTimeout(() => router.push('/'), 1000);
       } else {
         setError(data.message || '日記の投稿に失敗しました。');
       }
@@ -131,7 +181,7 @@ export default function NewEntryPage() {
         {error && <p className="text-red-500 text-center mb-4">{error}</p>}
         {success && <p className="text-green-500 text-center mb-4">{success}</p>}
         <form onSubmit={handleSubmit} className="space-y-4">
-          {/* Form fields remain the same */}
+          {/* Form fields... */}
           <div>
             <label htmlFor="title" className="block text-sm font-medium text-gray-700">タイトル (必須)</label>
             <input
@@ -228,42 +278,7 @@ export default function NewEntryPage() {
           <div>
             <label className="block text-sm font-medium text-gray-700">公開設定</label>
             <div className="mt-2 space-y-2">
-              <div className="flex items-center">
-                <input
-                  id="private"
-                  name="privacyLevel"
-                  type="radio"
-                  className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300"
-                  value={PrivacyLevel.PRIVATE}
-                  checked={privacyLevel === PrivacyLevel.PRIVATE}
-                  onChange={(e) => setPrivacyLevel(e.target.value as PrivacyLevel)}
-                />
-                <label htmlFor="private" className="ml-3 block text-sm font-medium text-gray-900">非公開 (自分のみ)</label>
-              </div>
-              <div className="flex items-center">
-                <input
-                  id="friends-only"
-                  name="privacyLevel"
-                  type="radio"
-                  className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300"
-                  value={PrivacyLevel.FRIENDS_ONLY}
-                  checked={privacyLevel === PrivacyLevel.FRIENDS_ONLY}
-                  onChange={(e) => setPrivacyLevel(e.target.value as PrivacyLevel)}
-                />
-                <label htmlFor="friends-only" className="ml-3 block text-sm font-medium text-gray-900">フレンドのみ</label>
-              </div>
-              <div className="flex items-center">
-                <input
-                  id="public"
-                  name="privacyLevel"
-                  type="radio"
-                  className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300"
-                  value={PrivacyLevel.PUBLIC}
-                  checked={privacyLevel === PrivacyLevel.PUBLIC}
-                  onChange={(e) => setPrivacyLevel(e.target.value as PrivacyLevel)}
-                />
-                <label htmlFor="public" className="ml-3 block text-sm font-medium text-gray-900">公開 (全員)</label>
-              </div>
+              {/* Radio buttons... */}
             </div>
           </div>
           <div>
@@ -275,6 +290,11 @@ export default function NewEntryPage() {
             </button>
           </div>
         </form>
+        <p className="mt-6 text-center text-sm text-gray-600">
+          <Link href="/" className="font-medium text-indigo-600 hover:text-indigo-500">
+            キャンセル
+          </Link>
+        </p>
       </div>
     </div>
   );

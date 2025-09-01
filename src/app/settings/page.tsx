@@ -1,35 +1,80 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
+import { debounce } from 'lodash';
+
+const DRAFT_KEY = 'autosave-settings-profile';
+
+interface DraftData {
+  username: string;
+  email: string;
+  description: string;
+}
 
 export default function SettingsPage() {
+  const router = useRouter();
+
+  // Form state
   const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [description, setDescription] = useState(''); // 追加
-  const [iconFile, setIconFile] = useState<File | null>(null); // 追加
-  const [iconUrl, setIconUrl] = useState<string | null>(null); // 追加：既存アイコン表示用
+  const [description, setDescription] = useState('');
+  const [iconFile, setIconFile] = useState<File | null>(null);
+  const [iconUrl, setIconUrl] = useState<string | null>(null);
+
+  // Control state
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [loading, setLoading] = useState(true);
-  const router = useRouter();
+
+  // --- AUTO-DRAFT SAVE LOGIC ---
+
+  // 1. Save draft to localStorage periodically
+  const saveDraft = useCallback(debounce((data: DraftData) => {
+    localStorage.setItem(DRAFT_KEY, JSON.stringify(data));
+    console.log('Draft saved!');
+  }, 1500), []);
 
   useEffect(() => {
-    const fetchUserData = async () => {
+    if (!loading) {
+      saveDraft({ username, email, description });
+    }
+  }, [username, email, description, loading, saveDraft]);
+
+  // 2. Load and offer to restore draft on initial page load
+  useEffect(() => {
+    const fetchAndRestore = async () => {
       try {
         const response = await fetch('/api/auth/me');
-        const data = await response.json(); // data の定義を if/else の外に出す
+        const data = await response.json();
         if (response.ok) {
-          setUsername(data.user.username);
-          setEmail(data.user.email);
-          setDescription(data.user.description || ''); // 追加
-          setIconUrl(data.user.iconUrl || null); // 追加
+          const user = data.user;
+          setUsername(user.username);
+          setEmail(user.email);
+          setDescription(user.description || '');
+          setIconUrl(user.iconUrl || null);
+
+          // Check for a draft after fetching initial data
+          const savedDraft = localStorage.getItem(DRAFT_KEY);
+          if (savedDraft) {
+            const draftData: DraftData = JSON.parse(savedDraft);
+            // Ask to restore only if the draft is different from the saved data
+            if (draftData.username !== user.username || draftData.email !== user.email || draftData.description !== (user.description || '')) {
+              if (window.confirm('未保存の下書きがあります。復元しますか？')) {
+                setUsername(draftData.username);
+                setEmail(draftData.email);
+                setDescription(draftData.description);
+              }
+            }
+            // Clean up the draft if user declines or it's same as saved
+            localStorage.removeItem(DRAFT_KEY);
+          }
         } else {
           setError(data.message || 'ユーザー情報の取得に失敗しました。');
-          router.push('/auth/login'); // Redirect to login if not authenticated
+          router.push('/auth/login');
         }
       } catch (err) {
         console.error('Failed to fetch user data:', err);
@@ -39,8 +84,9 @@ export default function SettingsPage() {
         setLoading(false);
       }
     };
-    fetchUserData();
-  }, [router]);
+    fetchAndRestore();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [router]); // Run only once on mount
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -60,11 +106,9 @@ export default function SettingsPage() {
       formData.append('iconUrl', '');
     }
 
-
     try {
       const response = await fetch('/api/auth/me', {
         method: 'PUT',
-        // headers: { 'Content-Type': 'application/json' }, // FormDataを使用するため不要
         body: formData,
       });
 
@@ -72,9 +116,11 @@ export default function SettingsPage() {
 
       if (response.ok) {
         setSuccess(data.message || 'プロフィールが正常に更新されました！');
-        setPassword(''); // Clear password field after successful update
-        setIconFile(null); // Clear selected file
-        setIconUrl(data.user.iconUrl || null); // Update iconUrl from response
+        setPassword('');
+        setIconFile(null);
+        setIconUrl(data.user.iconUrl || null);
+        // 3. Clear draft on successful submission
+        localStorage.removeItem(DRAFT_KEY);
       } else {
         setError(data.message || 'プロフィールの更新に失敗しました。');
       }
@@ -153,7 +199,7 @@ export default function SettingsPage() {
                 <Image src={iconUrl} alt="Current Icon" width={80} height={80} className="object-cover rounded-full" />
                 <button
                   type="button"
-                  onClick={() => setIconUrl(null)} // アイコンを削除
+                  onClick={() => setIconUrl(null)}
                   className="mt-1 text-red-600 hover:text-red-700 text-sm"
                 >
                   アイコンを削除

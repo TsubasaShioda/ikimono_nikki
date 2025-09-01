@@ -191,20 +191,22 @@ export default function HomePage() {
   };
 
   const handleLogout = async () => {
-    try {
-      const response = await fetch('/api/auth/logout', {
-        method: 'POST',
-      });
+    if (window.confirm('本当にログアウトしますか？')) {
+      try {
+        const response = await fetch('/api/auth/logout', {
+          method: 'POST',
+        });
 
-      if (response.ok) {
-        setCurrentUser(null);
-        debouncedFetchEntries();
-      } else {
-        alert('ログアウトに失敗しました。');
+        if (response.ok) {
+          setCurrentUser(null);
+          debouncedFetchEntries();
+        } else {
+          alert('ログアウトに失敗しました。');
+        }
+      } catch (err) {
+        console.error('Logout error:', err);
+        alert('ログアウト中にエラーが発生しました。');
       }
-    } catch (err) {
-      console.error('Logout error:', err);
-      alert('ログアウト中にエラーが発生しました。');
     }
   };
 

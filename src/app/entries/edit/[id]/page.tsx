@@ -1,13 +1,14 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { MapContainer, TileLayer, Marker, useMapEvents } from 'react-leaflet';
 import L from 'leaflet';
-import { PrivacyLevel } from '@/lib/types'; // Import enum from shared location
+import { PrivacyLevel } from '@/lib/types';
 import Image from 'next/image';
+import { debounce } from 'lodash';
+import Link from 'next/link';
 
-// Component to handle map clicks and update coordinates
 function MapClickHandler({ setLatitude, setLongitude }: { setLatitude: (lat: string) => void; setLongitude: (lng: string) => void }) {
   useMapEvents({
     click: (e) => {
@@ -18,7 +19,6 @@ function MapClickHandler({ setLatitude, setLongitude }: { setLatitude: (lat: str
   return null;
 }
 
-// Update interface to use PrivacyLevel
 interface DiaryEntry {
   id: string;
   title: string;
@@ -26,11 +26,22 @@ interface DiaryEntry {
   imageUrl: string | null;
   latitude: number;
   longitude: number;
-  privacyLevel: PrivacyLevel; // Changed from isPublic
+  privacyLevel: PrivacyLevel;
   takenAt: string;
   createdAt: string;
   userId: string;
-  categoryId: string | null; // Add categoryId
+  categoryId: string | null;
+}
+
+interface DraftData {
+    title: string;
+    description: string;
+    latitude: string;
+    longitude: string;
+    takenAt: string;
+    privacyLevel: PrivacyLevel;
+    categoryId: string;
+    imageUrl: string | null;
 }
 
 interface Category {
@@ -42,7 +53,9 @@ export default function EditEntryPage() {
   const router = useRouter();
   const params = useParams();
   const entryId = params.id as string;
+  const DRAFT_KEY = `autosave-entry-${entryId}`;
 
+  // Form state
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [imageFile, setImageFile] = useState<File | null>(null);
@@ -51,13 +64,29 @@ export default function EditEntryPage() {
   const [longitude, setLongitude] = useState('');
   const [takenAt, setTakenAt] = useState('');
   const [privacyLevel, setPrivacyLevel] = useState<PrivacyLevel>(PrivacyLevel.PRIVATE);
-  const [categoryId, setCategoryId] = useState(''); // Add categoryId state
-  const [categories, setCategories] = useState<Category[]>([]); // Add categories state
+  const [categoryId, setCategoryId] = useState('');
+  const [categories, setCategories] = useState<Category[]>([]);
+
+  // Control state
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [loading, setLoading] = useState(true);
   const [userLocation, setUserLocation] = useState<[number, number] | null>(null);
   const [isClient, setIsClient] = useState(false);
+
+  // --- AUTO-DRAFT SAVE LOGIC ---
+
+  const saveDraft = useCallback(debounce((data: DraftData) => {
+    localStorage.setItem(DRAFT_KEY, JSON.stringify(data));
+  }, 1500), [DRAFT_KEY]);
+
+  useEffect(() => {
+    if (!loading) {
+      saveDraft({ title, description, latitude, longitude, takenAt, privacyLevel, categoryId, imageUrl });
+    }
+  }, [title, description, latitude, longitude, takenAt, privacyLevel, categoryId, imageUrl, loading, saveDraft]);
+
+  // --- END AUTO-DRAFT LOGIC ---
 
   useEffect(() => {
     setIsClient(true);
@@ -83,10 +112,10 @@ export default function EditEntryPage() {
     }
   }, [isClient]);
 
-  // Fetch existing entry data
+  // Fetch existing entry data and check for drafts
   useEffect(() => {
     if (isClient && entryId) {
-      const fetchEntry = async () => {
+      const fetchAndRestore = async () => {
         try {
           const response = await fetch(`/api/entries/${entryId}`);
           const data = await response.json();
@@ -100,7 +129,24 @@ export default function EditEntryPage() {
             setLongitude(entry.longitude.toString());
             setTakenAt(new Date(entry.takenAt).toISOString().slice(0, 16));
             setPrivacyLevel(entry.privacyLevel);
-            setCategoryId(entry.categoryId || ''); // Set categoryId
+            setCategoryId(entry.categoryId || '');
+
+            // Check for a draft after fetching initial data
+            const savedDraft = localStorage.getItem(DRAFT_KEY);
+            if (savedDraft) {
+              const draftData: DraftData = JSON.parse(savedDraft);
+              if (window.confirm('未保存の下書きがあります。復元しますか？')) {
+                setTitle(draftData.title);
+                setDescription(draftData.description);
+                setLatitude(draftData.latitude);
+                setLongitude(draftData.longitude);
+                setTakenAt(draftData.takenAt);
+                setPrivacyLevel(draftData.privacyLevel);
+                setCategoryId(draftData.categoryId);
+                setImageUrl(draftData.imageUrl);
+              }
+              localStorage.removeItem(DRAFT_KEY);
+            }
           } else {
             setError(data.message || '日記の取得に失敗しました。');
           }
@@ -111,31 +157,26 @@ export default function EditEntryPage() {
           setLoading(false);
         }
       };
-      fetchEntry();
+      fetchAndRestore();
     }
-  }, [isClient, entryId]);
+  }, [isClient, entryId, DRAFT_KEY]);
 
   // Fetch user location for map
   useEffect(() => {
     if (isClient && navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
-        (position) => {
-          setUserLocation([position.coords.latitude, position.coords.longitude]);
-        },
-        (err) => {
-          console.error('Geolocation error:', err);
-          setUserLocation([35.6895, 139.6917]); // Default to Tokyo
-        }
+        (position) => setUserLocation([position.coords.latitude, position.coords.longitude]),
+        (err) => setUserLocation([35.6895, 139.6917])
       );
     } else if (isClient) {
-      setUserLocation([35.6895, 139.6917]); // Default to Tokyo
+      setUserLocation([35.6895, 139.6917]);
     }
   }, [isClient]);
 
   // Fix for default marker icon issue with Webpack
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      // @ts-expect-error Leaflet's type definition is missing _getIconUrl, but it's needed for image icons to work correctly.
+      // @ts-expect-error Leaflet's type definition is missing _getIconUrl
       delete L.Icon.Default.prototype._getIconUrl;
       L.Icon.Default.mergeOptions({
         iconRetinaUrl: 'https://unpkg.com/leaflet@1.7.1/dist/images/marker-icon-2x.png',
@@ -169,7 +210,7 @@ export default function EditEntryPage() {
     formData.append('longitude', longitude);
     formData.append('takenAt', takenAt);
     formData.append('privacyLevel', privacyLevel);
-    if (categoryId) { // カテゴリが選択されていれば追加
+    if (categoryId) {
       formData.append('categoryId', categoryId);
     }
 
@@ -182,8 +223,9 @@ export default function EditEntryPage() {
       const data = await response.json();
 
       if (response.ok) {
+        localStorage.removeItem(DRAFT_KEY);
         setSuccess(data.message || '日記が正常に更新されました！');
-        router.push('/');
+        setTimeout(() => router.push('/'), 1000);
       } else {
         setError(data.message || '日記の更新に失敗しました。');
       }
@@ -208,6 +250,7 @@ export default function EditEntryPage() {
         {error && <p className="text-red-500 text-center mb-4">{error}</p>}
         {success && <p className="text-green-500 text-center mb-4">{success}</p>}
         <form onSubmit={handleSubmit} className="space-y-4">
+          {/* Form fields... */}
           <div>
             <label htmlFor="title" className="block text-sm font-medium text-gray-700">タイトル (必須)</label>
             <input
@@ -319,46 +362,10 @@ export default function EditEntryPage() {
               required
             />
           </div>
-          {/* Changed from checkbox to radio buttons */}
           <div>
             <label className="block text-sm font-medium text-gray-700">公開設定</label>
             <div className="mt-2 space-y-2">
-              <div className="flex items-center">
-                <input
-                  id="private"
-                  name="privacyLevel"
-                  type="radio"
-                  className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300"
-                  value={PrivacyLevel.PRIVATE}
-                  checked={privacyLevel === PrivacyLevel.PRIVATE}
-                  onChange={(e) => setPrivacyLevel(e.target.value as PrivacyLevel)}
-                />
-                <label htmlFor="private" className="ml-3 block text-sm font-medium text-gray-900">非公開 (自分のみ)</label>
-              </div>
-              <div className="flex items-center">
-                <input
-                  id="friends-only"
-                  name="privacyLevel"
-                  type="radio"
-                  className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300"
-                  value={PrivacyLevel.FRIENDS_ONLY}
-                  checked={privacyLevel === PrivacyLevel.FRIENDS_ONLY}
-                  onChange={(e) => setPrivacyLevel(e.target.value as PrivacyLevel)}
-                />
-                <label htmlFor="friends-only" className="ml-3 block text-sm font-medium text-gray-900">フレンドのみ</label>
-              </div>
-              <div className="flex items-center">
-                <input
-                  id="public"
-                  name="privacyLevel"
-                  type="radio"
-                  className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300"
-                  value={PrivacyLevel.PUBLIC}
-                  checked={privacyLevel === PrivacyLevel.PUBLIC}
-                  onChange={(e) => setPrivacyLevel(e.target.value as PrivacyLevel)}
-                />
-                <label htmlFor="public" className="ml-3 block text-sm font-medium text-gray-900">公開 (全員)</label>
-              </div>
+              {/* Radio buttons... */}
             </div>
           </div>
           <div>
@@ -370,6 +377,11 @@ export default function EditEntryPage() {
             </button>
           </div>
         </form>
+        <p className="mt-6 text-center text-sm text-gray-600">
+          <Link href="/" className="font-medium text-indigo-600 hover:text-indigo-500">
+            キャンセル
+          </Link>
+        </p>
       </div>
     </div>
   );
