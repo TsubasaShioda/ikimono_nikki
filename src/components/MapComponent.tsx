@@ -6,21 +6,43 @@ import L from 'leaflet';
 import Link from 'next/link';
 import Image from 'next/image';
 
-// This component handles map view changes, including the initial setView and animated flyTo.
-function MapViewUpdater({ flyToCoords }: { flyToCoords: [number, number] | null }) {
+// This component handles view changes from props
+function MapViewUpdater({ center, zoom, flyToCoords }: { center: [number, number], zoom: number, flyToCoords: [number, number] | null }) {
   const map = useMap();
 
   useEffect(() => {
     if (flyToCoords) {
-      map.flyTo(flyToCoords, 10); // Zoom level 10 is a good starting point for a prefecture
+      map.flyTo(flyToCoords, 10);
+    } else {
+      // Only set view if it's different from the map's current state to avoid conflicts
+      const currentCenter = map.getCenter();
+      const currentZoom = map.getZoom();
+      if (currentCenter.lat !== center[0] || currentCenter.lng !== center[1] || currentZoom !== zoom) {
+        map.setView(center, zoom);
+      }
     }
-  }, [flyToCoords, map]);
+  }, [center, zoom, flyToCoords, map]);
 
   return null;
 }
 
-// Custom hook to handle map events and update bounds
-function MapEventHandler({ onBoundsChange }: { onBoundsChange: (bounds: { minLat: number; maxLat: number; minLng: number; maxLng: number }) => void }) {
+// Custom hook to handle map events for saving state
+function MapStateSaver({ onMapViewChange }: { onMapViewChange: (view: { center: [number, number], zoom: number }) => void }) {
+  const map = useMapEvents({
+    moveend: () => {
+      const center = map.getCenter();
+      onMapViewChange({ center: [center.lat, center.lng], zoom: map.getZoom() });
+    },
+    zoomend: () => {
+      const center = map.getCenter();
+      onMapViewChange({ center: [center.lat, center.lng], zoom: map.getZoom() });
+    },
+  });
+  return null;
+}
+
+// Custom hook to handle map events and update bounds for search
+function MapBoundsHandler({ onBoundsChange }: { onBoundsChange: (bounds: { minLat: number; maxLat: number; minLng: number; maxLng: number } | null) => void }) {
   const map = useMapEvents({
     moveend: () => {
       const bounds = map.getBounds();
@@ -57,18 +79,20 @@ interface DiaryEntry {
 }
 
 interface MapComponentProps {
-  userLocation: [number, number];
-  flyToCoords: [number, number] | null; // New prop for flying to a location
+  center: [number, number];
+  zoom: number;
+  flyToCoords: [number, number] | null;
   entries: DiaryEntry[];
   currentUserId: string | null;
   onDelete: (id: string) => void;
   onLikeToggle: (id: string) => void;
   onBoundsChange: (bounds: { minLat: number; maxLat: number; minLng: number; maxLng: number } | null) => void;
+  onMapViewChange: (view: { center: [number, number], zoom: number }) => void;
   onHideEntry: (entryId: string) => void;
   onHideUser: (userId: string) => void;
 }
 
-export default function MapComponent({ userLocation, flyToCoords, entries, currentUserId, onDelete, onLikeToggle, onBoundsChange, onHideEntry, onHideUser }: MapComponentProps) {
+export default function MapComponent({ center, zoom, flyToCoords, entries, currentUserId, onDelete, onLikeToggle, onBoundsChange, onMapViewChange, onHideEntry, onHideUser }: MapComponentProps) {
   const [hidingMenuEntryId, setHidingMenuEntryId] = useState<string | null>(null);
   const popupRef = useRef<L.Popup>(null);
 
@@ -146,9 +170,10 @@ export default function MapComponent({ userLocation, flyToCoords, entries, curre
 
   return (
     <div className="h-full w-full">
-      <MapContainer center={userLocation} zoom={13} scrollWheelZoom={true} style={{ height: '100%', width: '100%' }}>
-        <MapViewUpdater flyToCoords={flyToCoords} />
-        <MapEventHandler onBoundsChange={onBoundsChange} />
+      <MapContainer center={center} zoom={zoom} scrollWheelZoom={true} style={{ height: '100%', width: '100%' }}>
+        <MapViewUpdater center={center} zoom={zoom} flyToCoords={flyToCoords} />
+        <MapStateSaver onMapViewChange={onMapViewChange} />
+        <MapBoundsHandler onBoundsChange={onBoundsChange} />
         <TileLayer
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"

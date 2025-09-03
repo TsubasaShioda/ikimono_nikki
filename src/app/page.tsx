@@ -8,7 +8,6 @@ import { debounce } from 'lodash';
 import Sidebar, { Filters } from '@/components/FilterSidebar';
 import Image from 'next/image';
 
-// Dynamically import MapComponent
 const MapComponent = dynamic(
   () => import('../components/MapComponent'),
   { ssr: false }
@@ -44,19 +43,21 @@ interface CurrentUser {
   iconUrl: string | null;
 }
 
+const MAP_VIEW_STATE_KEY = 'mapViewState';
+const DEFAULT_ZOOM = 13;
+const TOKYO_COORDS: [number, number] = [35.6895, 139.6917];
+
 export default function HomePage() {
   const [entries, setEntries] = useState<DiaryEntry[]>([]);
   const [initialLoading, setInitialLoading] = useState(true);
   const [searchLoading, setSearchLoading] = useState(false);
   const [error, setError] = useState('');
-  const [userLocation, setUserLocation] = useState<[number, number] | null>(null);
   const [isClient, setIsClient] = useState(false);
   const [currentUser, setCurrentUser] = useState<CurrentUser | null>(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-
   const [flyToCoords, setFlyToCoords] = useState<[number, number] | null>(null);
+  const [mapView, setMapView] = useState<{ center: [number, number]; zoom: number } | null>(null);
 
-  // Unified filter state
   const [filters, setFilters] = useState<Filters>({
     q: '',
     categoryId: '',
@@ -73,6 +74,41 @@ export default function HomePage() {
   useEffect(() => {
     setIsClient(true);
   }, []);
+
+  // Initialize map view from sessionStorage or user location
+  useEffect(() => {
+    if (isClient) {
+      try {
+        const savedView = sessionStorage.getItem(MAP_VIEW_STATE_KEY);
+        if (savedView) {
+          const { lat, lng, zoom } = JSON.parse(savedView);
+          setMapView({ center: [lat, lng], zoom });
+          return;
+        }
+      } catch (e) {
+        console.error("Failed to parse map view state from sessionStorage", e);
+      }
+
+      // If no saved view, get user's location
+      if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+          (position) => {
+            setMapView({
+              center: [position.coords.latitude, position.coords.longitude],
+              zoom: DEFAULT_ZOOM,
+            });
+          },
+          () => {
+            setError('現在地を取得できませんでした。東京を表示します。');
+            setMapView({ center: TOKYO_COORDS, zoom: DEFAULT_ZOOM });
+          }
+        );
+      } else {
+        setError('お使いのブラウザは位置情報に対応していません。東京を表示します。');
+        setMapView({ center: TOKYO_COORDS, zoom: DEFAULT_ZOOM });
+      }
+    }
+  }, [isClient]);
 
   // Fetch current user
   useEffect(() => {
@@ -92,24 +128,6 @@ export default function HomePage() {
         }
       };
       fetchCurrentUser();
-    }
-  }, [isClient]);
-
-  // Fetch user location
-  useEffect(() => {
-    if (isClient && navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          setUserLocation([position.coords.latitude, position.coords.longitude]);
-        },
-        () => {
-          setError('現在地を取得できませんでした。');
-          setUserLocation([35.6895, 139.6917]);
-        }
-      );
-    } else if (isClient) {
-      setError('お使いのブラウザは位置情報に対応していません。');
-      setUserLocation([35.6895, 139.6917]);
     }
   }, [isClient]);
 
@@ -190,6 +208,17 @@ export default function HomePage() {
       debouncedHandleBoundsChange(bounds);
     },
     [debouncedHandleBoundsChange]
+  );
+
+  const debouncedHandleMapViewChange = useMemo(
+    () => debounce((newView: { center: [number, number], zoom: number }) => {
+      try {
+        sessionStorage.setItem(MAP_VIEW_STATE_KEY, JSON.stringify({ lat: newView.center[0], lng: newView.center[1], zoom: newView.zoom }));
+      } catch (e) {
+        console.error("Failed to save map view state to sessionStorage", e);
+      }
+    }, 500),
+    []
   );
 
   const handleResetBounds = () => {
@@ -293,7 +322,7 @@ export default function HomePage() {
     setEntries(prevEntries => prevEntries.filter(entry => entry.userId !== userId));
   };
 
-  if (!isClient || initialLoading || userLocation === null) {
+  if (!isClient || !mapView || initialLoading) {
     return <div className="min-h-screen flex items-center justify-center">地図を読み込み中...</div>;
   }
 
@@ -348,13 +377,15 @@ export default function HomePage() {
       <main className="flex-grow relative z-10" style={{ height: 'calc(100vh - 88px)' }}>
         {/* Map Component takes up the full space */}
         <MapComponent 
-            userLocation={userLocation} 
+            center={mapView.center}
+            zoom={mapView.zoom}
             flyToCoords={flyToCoords}
             entries={entries} 
             currentUserId={currentUser?.id || null} 
             onDelete={handleDelete} 
             onLikeToggle={onLikeToggle}
             onBoundsChange={handleBoundsChange}
+            onMapViewChange={debouncedHandleMapViewChange}
             onHideEntry={handleHideEntry}
             onHideUser={handleHideUser}
         />
