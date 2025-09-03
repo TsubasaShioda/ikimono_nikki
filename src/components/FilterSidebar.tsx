@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { Category } from '@prisma/client';
+import { PREFECTURES, Prefecture } from '@/lib/prefectures';
 
 export interface Filters {
   q: string;
@@ -14,29 +15,29 @@ export interface Filters {
 
 interface FilterSidebarProps {
   onApplyFilters: (filters: Filters) => void;
+  onFlyTo: (coords: [number, number]) => void; // 新しいprop
   initialFilters: Filters;
   isSidebarOpen: boolean;
   onClose: () => void;
 }
 
-const FilterSidebar = ({ onApplyFilters, initialFilters, isSidebarOpen, onClose }: FilterSidebarProps) => {
+const FilterSidebar = ({ onApplyFilters, onFlyTo, initialFilters, isSidebarOpen, onClose }: FilterSidebarProps) => {
   const [keyword, setKeyword] = useState(initialFilters.q || '');
   const [categoryId, setCategoryId] = useState(initialFilters.categoryId || '');
   const [startDate, setStartDate] = useState(initialFilters.startDate || '');
   const [endDate, setEndDate] = useState(initialFilters.endDate || '');
   const [timeOfDay, setTimeOfDay] = useState(initialFilters.timeOfDay || 'all');
-  const [selectedMonths, setSelectedMonths] = useState<number[]>(initialFilters.monthOnly || []); // 選択された月のstate
+  const [selectedMonths, setSelectedMonths] = useState<number[]>(initialFilters.monthOnly || []);
   const [categories, setCategories] = useState<Category[]>([]);
 
   useEffect(() => {
-    // Sync state with props when sidebar opens
     if (isSidebarOpen) {
       setKeyword(initialFilters.q || '');
       setCategoryId(initialFilters.categoryId || '');
       setStartDate(initialFilters.startDate || '');
       setEndDate(initialFilters.endDate || '');
       setTimeOfDay(initialFilters.timeOfDay || 'all');
-      setSelectedMonths(initialFilters.monthOnly || []); // 選択された月を同期
+      setSelectedMonths(initialFilters.monthOnly || []);
     }
   }, [isSidebarOpen, initialFilters]);
 
@@ -62,7 +63,7 @@ const FilterSidebar = ({ onApplyFilters, initialFilters, isSidebarOpen, onClose 
       startDate,
       endDate,
       timeOfDay: timeOfDay,
-      monthOnly: selectedMonths.length > 0 ? selectedMonths : null, // 選択された月を渡す
+      monthOnly: selectedMonths.length > 0 ? selectedMonths : null,
     });
     onClose();
   };
@@ -73,7 +74,7 @@ const FilterSidebar = ({ onApplyFilters, initialFilters, isSidebarOpen, onClose 
     setStartDate('');
     setEndDate('');
     setTimeOfDay('all');
-    setSelectedMonths([]); // 選択された月をリセット
+    setSelectedMonths([]);
     onApplyFilters({
       q: '',
       categoryId: '',
@@ -91,6 +92,14 @@ const FilterSidebar = ({ onApplyFilters, initialFilters, isSidebarOpen, onClose 
     );
   };
 
+  const handlePrefectureChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const [lat, lng] = e.target.value.split(',').map(Number);
+    if (!isNaN(lat) && !isNaN(lng)) {
+      onFlyTo([lat, lng]);
+      onClose();
+    }
+  };
+
   const months = [
     { value: 1, label: '1月' }, { value: 2, label: '2月' }, { value: 3, label: '3月' },
     { value: 4, label: '4月' }, { value: 5, label: '5月' }, { value: 6, label: '6月' },
@@ -100,7 +109,7 @@ const FilterSidebar = ({ onApplyFilters, initialFilters, isSidebarOpen, onClose 
 
   return (
     <div className={`fixed top-0 right-0 h-full bg-white shadow-lg z-50 transform transition-transform duration-300 ease-in-out text-gray-900 ${isSidebarOpen ? 'translate-x-0' : 'translate-x-full'}`} style={{width: '320px'}}>
-      <div className="p-5">
+      <div className="p-5 overflow-y-auto h-full pb-24">
         <div className="flex justify-between items-center mb-6">
             <h3 className="text-xl font-bold">フィルター</h3>
             <button onClick={onClose} className="text-gray-500 hover:text-gray-800">
@@ -108,6 +117,24 @@ const FilterSidebar = ({ onApplyFilters, initialFilters, isSidebarOpen, onClose 
             </button>
         </div>
         <div className="space-y-5">
+          {/* Prefecture Jump */}
+          <div>
+            <label htmlFor="prefecture" className="block text-sm font-medium text-gray-700 mb-1">都道府県へ移動</label>
+            <select
+              id="prefecture"
+              onChange={handlePrefectureChange}
+              className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md"
+              defaultValue=""
+            >
+              <option value="" disabled>選択してください</option>
+              {PREFECTURES.map((pref) => (
+                <option key={pref.name} value={`${pref.latitude},${pref.longitude}`}>
+                  {pref.name}
+                </option>
+              ))}
+            </select>
+          </div>
+
           {/* Keyword Search */}
           <div>
             <label htmlFor="keyword" className="block text-sm font-medium text-gray-700 mb-1">キーワード</label>

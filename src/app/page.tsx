@@ -54,6 +54,8 @@ export default function HomePage() {
   const [currentUser, setCurrentUser] = useState<CurrentUser | null>(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
+  const [flyToCoords, setFlyToCoords] = useState<[number, number] | null>(null);
+
   // Unified filter state
   const [filters, setFilters] = useState<Filters>({
     q: '',
@@ -170,6 +172,10 @@ export default function HomePage() {
       ...prevFilters,
       ...newFilters,
     }));
+  };
+
+  const handleFlyTo = (coords: [number, number]) => {
+    setFlyToCoords(coords);
   };
   
   const debouncedHandleBoundsChange = useMemo(
@@ -343,6 +349,7 @@ export default function HomePage() {
         {/* Map Component takes up the full space */}
         <MapComponent 
             userLocation={userLocation} 
+            flyToCoords={flyToCoords}
             entries={entries} 
             currentUserId={currentUser?.id || null} 
             onDelete={handleDelete} 
@@ -390,6 +397,7 @@ export default function HomePage() {
         isSidebarOpen={isSidebarOpen}
         onClose={() => setIsSidebarOpen(false)}
         onApplyFilters={handleApplyFilters}
+        onFlyTo={handleFlyTo}
         initialFilters={{
           q: filters.q,
           categoryId: filters.categoryId,

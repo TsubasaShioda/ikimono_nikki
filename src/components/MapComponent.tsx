@@ -1,17 +1,21 @@
 'use client';
 
-import { useEffect, useMemo, useCallback, useState, useRef } from 'react'; // Added useState, useRef
+import { useEffect, useMemo, useCallback, useState, useRef } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, useMap, useMapEvents } from 'react-leaflet';
 import L from 'leaflet';
 import Link from 'next/link';
 import Image from 'next/image';
 
-// Component to update map center based on user location
-function MapContentUpdater({ center }: { center: [number, number] }) {
+// This component handles map view changes, including the initial setView and animated flyTo.
+function MapViewUpdater({ flyToCoords }: { flyToCoords: [number, number] | null }) {
   const map = useMap();
+
   useEffect(() => {
-    map.setView(center);
-  }, [center, map]);
+    if (flyToCoords) {
+      map.flyTo(flyToCoords, 10); // Zoom level 10 is a good starting point for a prefecture
+    }
+  }, [flyToCoords, map]);
+
   return null;
 }
 
@@ -54,6 +58,7 @@ interface DiaryEntry {
 
 interface MapComponentProps {
   userLocation: [number, number];
+  flyToCoords: [number, number] | null; // New prop for flying to a location
   entries: DiaryEntry[];
   currentUserId: string | null;
   onDelete: (id: string) => void;
@@ -63,7 +68,7 @@ interface MapComponentProps {
   onHideUser: (userId: string) => void;
 }
 
-export default function MapComponent({ userLocation, entries, currentUserId, onDelete, onLikeToggle, onBoundsChange, onHideEntry, onHideUser }: MapComponentProps) {
+export default function MapComponent({ userLocation, flyToCoords, entries, currentUserId, onDelete, onLikeToggle, onBoundsChange, onHideEntry, onHideUser }: MapComponentProps) {
   const [hidingMenuEntryId, setHidingMenuEntryId] = useState<string | null>(null);
   const popupRef = useRef<L.Popup>(null);
 
@@ -142,7 +147,7 @@ export default function MapComponent({ userLocation, entries, currentUserId, onD
   return (
     <div className="h-full w-full">
       <MapContainer center={userLocation} zoom={13} scrollWheelZoom={true} style={{ height: '100%', width: '100%' }}>
-        <MapContentUpdater center={userLocation} />
+        <MapViewUpdater flyToCoords={flyToCoords} />
         <MapEventHandler onBoundsChange={onBoundsChange} />
         <TileLayer
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
