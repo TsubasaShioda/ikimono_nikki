@@ -221,9 +221,7 @@ export default function HomePage() {
     []
   );
 
-  const handleResetBounds = () => {
-      setMapBounds(null);
-  };
+  
 
   const handleLogout = async () => {
     if (window.confirm('本当にログアウトしますか？')) {
@@ -397,17 +395,7 @@ export default function HomePage() {
             </div>
         )}
         
-        {/* Area selection reset button */}
-        {mapBounds && (
-          <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 z-10">
-            <button
-              onClick={handleResetBounds}
-              className="px-4 py-2 bg-blue-500 text-white rounded-md shadow-lg hover:bg-blue-600"
-            >
-              エリア選択を解除
-            </button>
-          </div>
-        )}
+        
 
         {/* Loading indicator */}
         {searchLoading && (
