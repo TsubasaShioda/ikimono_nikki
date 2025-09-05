@@ -90,9 +90,10 @@ interface MapComponentProps {
   onMapViewChange: (view: { center: [number, number], zoom: number }) => void;
   onHideEntry: (entryId: string) => void;
   onHideUser: (userId: string) => void;
+  onOpenAlbumModal: (diaryEntryId: string) => void;
 }
 
-export default function MapComponent({ center, zoom, flyToCoords, entries, currentUserId, onDelete, onLikeToggle, onBoundsChange, onMapViewChange, onHideEntry, onHideUser }: MapComponentProps) {
+export default function MapComponent({ center, zoom, flyToCoords, entries, currentUserId, onDelete, onLikeToggle, onBoundsChange, onMapViewChange, onHideEntry, onHideUser, onOpenBookmarkModal }: MapComponentProps) {
   const [hidingMenuEntryId, setHidingMenuEntryId] = useState<string | null>(null);
   const popupRef = useRef<L.Popup>(null);
 
@@ -240,6 +241,17 @@ export default function MapComponent({ center, zoom, flyToCoords, entries, curre
                       <path fillRule="evenodd" d="M3.172 5.172a4 4 0 015.656 0L10 6.343l1.172-1.171a4 4 0 115.656 5.656L10 17.657l-6.828-6.829a4 4 0 010-5.656z" clipRule="evenodd" />
                     </svg>
                     <span>{entry.likesCount}</span>
+                  </button>
+
+                  <button
+                    onClick={() => onOpenBookmarkModal(entry.id)}
+                    disabled={!currentUserId}
+                    className={`flex items-center space-x-1 px-3 py-1 rounded-md text-sm transition-colors bg-gray-200 text-gray-700 ${!currentUserId ? 'cursor-not-allowed' : 'hover:bg-yellow-400'}`}
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                      <path d="M5 4a2 2 0 012-2h6a2 2 0 012 2v14l-5-3.125L5 18V4z" />
+                    </svg>
+                    <span>しおり</span>
                   </button>
                 </div>
 

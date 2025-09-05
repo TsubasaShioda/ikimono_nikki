@@ -7,6 +7,7 @@ import dynamic from 'next/dynamic';
 import { debounce } from 'lodash';
 import Sidebar, { Filters } from '@/components/FilterSidebar';
 import Image from 'next/image';
+import AlbumModal from '@/components/AlbumModal';
 
 const MapComponent = dynamic(
   () => import('../components/MapComponent'),
@@ -58,6 +59,9 @@ export default function HomePage() {
   const [flyToCoords, setFlyToCoords] = useState<[number, number] | null>(null);
   const [mapView, setMapView] = useState<{ center: [number, number]; zoom: number } | null>(null);
 
+  const [isAlbumModalOpen, setIsAlbumModalOpen] = useState(false);
+  const [bookmarkTargetId, setBookmarkTargetId] = useState<string | null>(null);
+
   const [filters, setFilters] = useState<Filters>({
     q: '',
     categoryId: '',
@@ -75,7 +79,6 @@ export default function HomePage() {
     setIsClient(true);
   }, []);
 
-  // Initialize map view from sessionStorage or user location
   useEffect(() => {
     if (isClient) {
       try {
@@ -88,15 +91,10 @@ export default function HomePage() {
       } catch (e) {
         console.error("Failed to parse map view state from sessionStorage", e);
       }
-
-      // If no saved view, get user's location
       if (navigator.geolocation) {
         navigator.geolocation.getCurrentPosition(
           (position) => {
-            setMapView({
-              center: [position.coords.latitude, position.coords.longitude],
-              zoom: DEFAULT_ZOOM,
-            });
+            setMapView({ center: [position.coords.latitude, position.coords.longitude], zoom: DEFAULT_ZOOM });
           },
           () => {
             setError('現在地を取得できませんでした。東京を表示します。');
@@ -110,7 +108,6 @@ export default function HomePage() {
     }
   }, [isClient]);
 
-  // Fetch current user
   useEffect(() => {
     if (isClient) {
       const fetchCurrentUser = async () => {
@@ -131,10 +128,8 @@ export default function HomePage() {
     }
   }, [isClient]);
 
-  // Fetch entries based on the unified filters state
   const fetchEntries = useCallback(async () => {
     if (!isClient) return;
-
     setSearchLoading(true);
     setError('');
     try {
@@ -152,18 +147,14 @@ export default function HomePage() {
         params.append('minLng', mapBounds.minLng.toString());
         params.append('maxLng', mapBounds.maxLng.toString());
       }
-
       const url = `/api/entries/search?${params.toString()}`;
       const response = await fetch(url);
       const data = await response.json();
-
       if (response.ok) {
         const processedEntries = data.entries.map((entry: RawDiaryEntry) => ({
           ...entry,
           likesCount: entry.likes.length,
-          isLikedByCurrentUser: currentUser
-            ? entry.likes.some((like: { userId: string }) => like.userId === currentUser.id)
-            : false,
+          isLikedByCurrentUser: currentUser ? entry.likes.some((like: { userId: string }) => like.userId === currentUser.id) : false,
         }));
         setEntries(processedEntries);
       } else {
@@ -180,56 +171,38 @@ export default function HomePage() {
 
   const debouncedFetchEntries = useMemo(() => debounce(fetchEntries, 500), [fetchEntries]);
 
-  // Trigger fetchEntries when filters change
   useEffect(() => {
     debouncedFetchEntries();
   }, [filters, mapBounds, debouncedFetchEntries]);
 
   const handleApplyFilters = (newFilters: Filters) => {
-    setFilters(prevFilters => ({
-      ...prevFilters,
-      ...newFilters,
-    }));
+    setFilters(prevFilters => ({ ...prevFilters, ...newFilters }));
   };
 
   const handleFlyTo = (coords: [number, number]) => {
     setFlyToCoords(coords);
   };
   
-  const debouncedHandleBoundsChange = useMemo(
-    () => debounce((bounds: { minLat: number; maxLat: number; minLng: number; maxLng: number } | null) => {
-      setMapBounds(bounds);
-    }, 300),
-    []
-  );
+  const debouncedHandleBoundsChange = useMemo(() => debounce((bounds: { minLat: number; maxLat: number; minLng: number; maxLng: number } | null) => {
+    setMapBounds(bounds);
+  }, 300), []);
 
-  const handleBoundsChange = useCallback(
-    (bounds: { minLat: number; maxLat: number; minLng: number; maxLng: number } | null) => {
-      debouncedHandleBoundsChange(bounds);
-    },
-    [debouncedHandleBoundsChange]
-  );
+  const handleBoundsChange = useCallback((bounds: { minLat: number; maxLat: number; minLng: number; maxLng: number } | null) => {
+    debouncedHandleBoundsChange(bounds);
+  }, [debouncedHandleBoundsChange]);
 
-  const debouncedHandleMapViewChange = useMemo(
-    () => debounce((newView: { center: [number, number], zoom: number }) => {
-      try {
-        sessionStorage.setItem(MAP_VIEW_STATE_KEY, JSON.stringify({ lat: newView.center[0], lng: newView.center[1], zoom: newView.zoom }));
-      } catch (e) {
-        console.error("Failed to save map view state to sessionStorage", e);
-      }
-    }, 500),
-    []
-  );
-
-  
+  const debouncedHandleMapViewChange = useMemo(() => debounce((newView: { center: [number, number], zoom: number }) => {
+    try {
+      sessionStorage.setItem(MAP_VIEW_STATE_KEY, JSON.stringify({ lat: newView.center[0], lng: newView.center[1], zoom: newView.zoom }));
+    } catch (e) {
+      console.error("Failed to save map view state to sessionStorage", e);
+    }
+  }, 500), []);
 
   const handleLogout = async () => {
     if (window.confirm('本当にログアウトしますか？')) {
       try {
-        const response = await fetch('/api/auth/logout', {
-          method: 'POST',
-        });
-
+        const response = await fetch('/api/auth/logout', { method: 'POST' });
         if (response.ok) {
           setCurrentUser(null);
           debouncedFetchEntries();
@@ -243,18 +216,14 @@ export default function HomePage() {
     }
   };
 
-  const handleDelete = async (id: string) => {
+  const handleDelete = useCallback(async (id: string) => {
     if (window.confirm('本当にこの日記を削除しますか？')) {
       try {
-        const response = await fetch(`/api/entries/${id}`, {
-          method: 'DELETE',
-        });
-
+        const response = await fetch(`/api/entries/${id}`, { method: 'DELETE' });
         if (response.ok) {
-          setEntries(entries.filter(entry => entry.id !== id));
+          setEntries(prevEntries => prevEntries.filter(entry => entry.id !== id));
           alert('日記が正常に削除されました。');
-        }
-        else {
+        } else {
           const data = await response.json();
           alert(data.message || '日記の削除に失敗しました。');
         }
@@ -263,27 +232,21 @@ export default function HomePage() {
         alert('日記の削除中にエラーが発生しました。');
       }
     }
-  };
+  }, []);
 
-  const onLikeToggle = async (entryId: string) => {
+  const onLikeToggle = useCallback(async (entryId: string) => {
     if (!currentUser) {
       alert('「いいね」するにはログインが必要です。');
       router.push('/auth/login');
       return;
     }
-
     const originalEntries = [...entries];
     const entry = entries.find(e => e.id === entryId);
     if (!entry) return;
 
-    // Optimistic update
     const updatedEntries = entries.map(e => {
       if (e.id === entryId) {
-        return {
-          ...e,
-          likesCount: e.isLikedByCurrentUser ? e.likesCount - 1 : e.likesCount + 1,
-          isLikedByCurrentUser: !e.isLikedByCurrentUser,
-        };
+        return { ...e, likesCount: e.isLikedByCurrentUser ? e.likesCount - 1 : e.likesCount + 1, isLikedByCurrentUser: !e.isLikedByCurrentUser };
       }
       return e;
     });
@@ -292,32 +255,61 @@ export default function HomePage() {
     try {
       const response = await fetch('/api/likes', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ diaryEntryId: entryId }),
       });
-
       if (!response.ok) {
-        // Revert on failure
         setEntries(originalEntries);
         const data = await response.json();
         alert(data.message || '「いいね」に失敗しました。');
       }
     } catch (error) {
-      // Revert on error
       setEntries(originalEntries);
       alert('「いいね」中にエラーが発生しました。');
       console.error('Like toggle error:', error);
     }
-  };
+  }, [currentUser, entries, router]);
 
-  const handleHideEntry = (entryId: string) => {
+  const handleHideEntry = useCallback((entryId: string) => {
     setEntries(prevEntries => prevEntries.filter(entry => entry.id !== entryId));
+  }, []);
+
+  const handleHideUser = useCallback((userId: string) => {
+    setEntries(prevEntries => prevEntries.filter(entry => entry.userId !== userId));
+  }, []);
+
+  const onOpenBookmarkModal = (diaryEntryId: string) => {
+    if (!currentUser) {
+      alert('アルバム機能を利用するにはログインが必要です。');
+      router.push('/auth/login');
+      return;
+    }
+    setBookmarkTargetId(diaryEntryId);
+    setIsAlbumModalOpen(true);
   };
 
-  const handleHideUser = (userId: string) => {
-    setEntries(prevEntries => prevEntries.filter(entry => entry.userId !== userId));
+  const handleCloseAlbumModal = () => {
+    setIsAlbumModalOpen(false);
+    setBookmarkTargetId(null);
+  };
+
+  const handleBookmark = async (albumId: string) => {
+    if (!bookmarkTargetId) return;
+    try {
+      const response = await fetch('/api/bookmarks', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ diaryEntryId: bookmarkTargetId, albumId }),
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.error || 'アルバムへの追加に失敗しました');
+      }
+      alert('アルバムに追加しました！');
+      handleCloseAlbumModal();
+    } catch (err) {
+      alert(err instanceof Error ? err.message : '不明なエラーが発生しました');
+    }
   };
 
   if (!isClient || !mapView || initialLoading) {
@@ -329,24 +321,15 @@ export default function HomePage() {
       <header className="flex justify-between items-center py-4 px-6 bg-white shadow-md z-30">
         <h1 className="text-3xl font-bold text-gray-900">生き物日記マップ</h1>
         <nav className="flex items-center space-x-4">
-          <button
-            onClick={() => setIsSidebarOpen(true)}
-            className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
-          >
+          <button onClick={() => setIsSidebarOpen(true)} className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">
             フィルター
           </button>
-
           {currentUser ? (
             <>
-              <Link href="/entries/new" className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700">
-                新しい日記を投稿
-              </Link>
-              <Link href="/entries/my" className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700">
-                自分の日記
-              </Link>
-              <Link href="/friends" className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700">
-                フレンド管理
-              </Link>
+              <Link href="/entries/new" className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700">新しい日記を投稿</Link>
+              <Link href="/entries/my" className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700">自分の日記</Link>
+              <Link href="/friends" className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700">フレンド管理</Link>
+              <Link href="/albums" className="px-4 py-2 bg-yellow-600 text-white rounded-md hover:bg-yellow-700">アルバム</Link>
               <Link href="/settings" className="w-10 h-10 rounded-full overflow-hidden bg-gray-200 flex items-center justify-center hover:opacity-80 transition-opacity">
                 {currentUser.iconUrl ? (
                   <Image src={currentUser.iconUrl} alt="プロフィールアイコン" width={40} height={40} className="w-full h-full object-cover" />
@@ -354,26 +337,18 @@ export default function HomePage() {
                   <Image src="/default-avatar.svg" alt="デフォルトアイコン" width={40} height={40} className="w-full h-full object-cover" />
                 )}
               </Link>
-              <button onClick={handleLogout} className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700">
-                ログアウト
-              </button>
+              <button onClick={handleLogout} className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700">ログアウト</button>
             </>
           ) : (
             <>
-              <Link href="/auth/login" className="px-4 py-2 text-gray-600 hover:text-gray-900 border border-gray-300 rounded-md">
-                ログイン
-              </Link>
-              <Link href="/auth/register" className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700">
-                新規登録
-              </Link>
+              <Link href="/auth/login" className="px-4 py-2 text-gray-600 hover:text-gray-900 border border-gray-300 rounded-md">ログイン</Link>
+              <Link href="/auth/register" className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700">新規登録</Link>
             </>
           )}
         </nav>
       </header>
 
-      {/* Main content area */}
       <main className="flex-grow relative z-10" style={{ height: 'calc(100vh - 88px)' }}>
-        {/* Map Component takes up the full space */}
         <MapComponent 
             center={mapView.center}
             zoom={mapView.zoom}
@@ -386,47 +361,27 @@ export default function HomePage() {
             onMapViewChange={debouncedHandleMapViewChange}
             onHideEntry={handleHideEntry}
             onHideUser={handleHideUser}
+            onOpenBookmarkModal={onOpenBookmarkModal}
         />
-
-        {/* エラーメッセージの表示 */}
-        {error && (
-            <div className="absolute top-4 left-1/2 transform -translate-x-1/2 z-20 bg-red-500 text-white px-4 py-2 rounded-md shadow-lg">
-                {error}
-            </div>
-        )}
-        
-        
-
-        {/* Loading indicator */}
-        {searchLoading && (
-            <div className="absolute top-4 left-1/2 transform -translate-x-1/2 z-10 bg-white px-4 py-2 rounded-md shadow-lg">
-                <div className="flex items-center space-x-2">
-                    <svg className="animate-spin h-5 w-5 text-gray-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                    </svg>
-                    <span>検索中...</span>
-                </div>
-            </div>
-        )}
+        {error && <div className="absolute top-4 left-1/2 transform -translate-x-1/2 z-20 bg-red-500 text-white px-4 py-2 rounded-md shadow-lg">{error}</div>}
+        {searchLoading && <div className="absolute top-4 left-1/2 transform -translate-x-1/2 z-10 bg-white px-4 py-2 rounded-md shadow-lg"><div className="flex items-center space-x-2"><svg className="animate-spin h-5 w-5 text-gray-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg><span>検索中...</span></div></div>}
       </main>
 
-      {/* Sidebar and overlay */}
       <Sidebar 
         isSidebarOpen={isSidebarOpen}
         onClose={() => setIsSidebarOpen(false)}
         onApplyFilters={handleApplyFilters}
         onFlyTo={handleFlyTo}
-        initialFilters={{
-          q: filters.q,
-          categoryId: filters.categoryId,
-          startDate: filters.startDate,
-          endDate: filters.endDate,
-          timeOfDay: filters.timeOfDay,
-          monthOnly: filters.monthOnly,
-        }}
+        initialFilters={{ q: filters.q, categoryId: filters.categoryId, startDate: filters.startDate, endDate: filters.endDate, timeOfDay: filters.timeOfDay, monthOnly: filters.monthOnly }}
       />
       {isSidebarOpen && <div className="fixed inset-0 bg-black opacity-50 z-40" onClick={() => setIsSidebarOpen(false)}></div>}
+
+      <AlbumModal 
+        isOpen={isAlbumModalOpen}
+        onClose={handleCloseAlbumModal}
+        diaryEntryId={bookmarkTargetId}
+        onBookmark={handleBookmark}
+      />
     </div>
   );
 }
