@@ -3,19 +3,16 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-
+import { PrivacyLevel } from '@/lib/types'; // Import the enum
 
 interface DiaryEntry {
   id: string;
   title: string;
   description: string | null;
   imageUrl: string | null;
-  latitude: number;
-  longitude: number;
-  isPublic: boolean;
+  privacyLevel: PrivacyLevel;
   takenAt: string;
   createdAt: string;
-  userId: string;
 }
 
 export default function MyEntriesPage() {
@@ -95,15 +92,19 @@ export default function MyEntriesPage() {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {entries.map((entry) => (
-              <div key={entry.id} className="bg-white p-4 rounded-lg shadow-sm">
-                <h3 className="text-lg font-semibold text-gray-900 mb-1">{entry.title}</h3>
-                {entry.imageUrl && (
-                  <Image src={entry.imageUrl} alt={entry.title} width={320} height={128} className="object-cover rounded-md mb-2" />
-                )}
-                <p className="text-gray-700 text-sm mb-1">{entry.description || '説明なし'}</p>
-                <p className="text-gray-500 text-xs">発見日時: {new Date(entry.takenAt).toLocaleString()}</p>
-                <p className="text-gray-500 text-xs">公開: {entry.isPublic ? 'はい' : 'いいえ'}</p>
-                <div className="mt-2 flex space-x-2">
+              <div key={entry.id} className="bg-white rounded-lg shadow-sm flex flex-col">
+                <Link href={`/entries/${entry.id}`} className="block hover:bg-gray-50 rounded-t-lg flex-grow">
+                  {entry.imageUrl && (
+                    <Image src={entry.imageUrl} alt={entry.title} width={320} height={128} className="object-cover rounded-t-md w-full h-40" />
+                  )}
+                  <div className="p-4">
+                    <h3 className="text-lg font-semibold text-gray-900 mb-1">{entry.title}</h3>
+                    <p className="text-gray-700 text-sm mb-1 line-clamp-2">{entry.description || '説明なし'}</p>
+                    <p className="text-gray-500 text-xs">発見日時: {new Date(entry.takenAt).toLocaleString()}</p>
+                    <p className="text-gray-500 text-xs">公開設定: {entry.privacyLevel === 'PUBLIC' ? '公開' : entry.privacyLevel === 'FRIENDS_ONLY' ? 'フレンドのみ' : '非公開'}</p>
+                  </div>
+                </Link>
+                <div className="p-4 border-t flex space-x-2 bg-gray-50 rounded-b-lg">
                   <Link href={`/entries/edit/${entry.id}`} className="px-3 py-1 bg-indigo-600 text-white rounded-md text-sm hover:bg-indigo-700">
                     編集
                   </Link>
