@@ -11,23 +11,26 @@ export interface Filters {
   endDate: string;
   timeOfDay: string;
   monthOnly: number[] | null;
+  scope: 'all' | 'me' | 'friends'; // Add scope to filters
 }
 
 interface FilterSidebarProps {
   onApplyFilters: (filters: Filters) => void;
-  onFlyTo: (coords: [number, number]) => void; // 新しいprop
+  onFlyTo: (coords: [number, number]) => void;
   initialFilters: Filters;
   isSidebarOpen: boolean;
   onClose: () => void;
+  isLoggedIn: boolean; // Add prop to check if user is logged in
 }
 
-const FilterSidebar = ({ onApplyFilters, onFlyTo, initialFilters, isSidebarOpen, onClose }: FilterSidebarProps) => {
+const FilterSidebar = ({ onApplyFilters, onFlyTo, initialFilters, isSidebarOpen, onClose, isLoggedIn }: FilterSidebarProps) => {
   const [keyword, setKeyword] = useState(initialFilters.q || '');
   const [categoryId, setCategoryId] = useState(initialFilters.categoryId || '');
   const [startDate, setStartDate] = useState(initialFilters.startDate || '');
   const [endDate, setEndDate] = useState(initialFilters.endDate || '');
   const [timeOfDay, setTimeOfDay] = useState(initialFilters.timeOfDay || 'all');
   const [selectedMonths, setSelectedMonths] = useState<number[]>(initialFilters.monthOnly || []);
+  const [scope, setScope] = useState<'all' | 'me' | 'friends'>(initialFilters.scope || 'all');
   const [categories, setCategories] = useState<Category[]>([]);
 
   useEffect(() => {
@@ -38,6 +41,7 @@ const FilterSidebar = ({ onApplyFilters, onFlyTo, initialFilters, isSidebarOpen,
       setEndDate(initialFilters.endDate || '');
       setTimeOfDay(initialFilters.timeOfDay || 'all');
       setSelectedMonths(initialFilters.monthOnly || []);
+      setScope(initialFilters.scope || 'all');
     }
   }, [isSidebarOpen, initialFilters]);
 
@@ -64,6 +68,7 @@ const FilterSidebar = ({ onApplyFilters, onFlyTo, initialFilters, isSidebarOpen,
       endDate,
       timeOfDay: timeOfDay,
       monthOnly: selectedMonths.length > 0 ? selectedMonths : null,
+      scope: scope,
     });
     onClose();
   };
@@ -75,6 +80,7 @@ const FilterSidebar = ({ onApplyFilters, onFlyTo, initialFilters, isSidebarOpen,
     setEndDate('');
     setTimeOfDay('all');
     setSelectedMonths([]);
+    setScope('all');
     onApplyFilters({
       q: '',
       categoryId: '',
@@ -82,6 +88,7 @@ const FilterSidebar = ({ onApplyFilters, onFlyTo, initialFilters, isSidebarOpen,
       endDate: '',
       timeOfDay: 'all',
       monthOnly: null,
+      scope: 'all',
     });
     onClose();
   };
@@ -117,20 +124,34 @@ const FilterSidebar = ({ onApplyFilters, onFlyTo, initialFilters, isSidebarOpen,
             </button>
         </div>
         <div className="space-y-5">
+          {/* Scope Filter */}
+          {isLoggedIn && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">表示範囲</label>
+              <div className="flex flex-col space-y-2">
+                <label className="flex items-center">
+                  <input type="radio" name="scope" value="all" checked={scope === 'all'} onChange={() => setScope('all')} className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300" />
+                  <span className="ml-2 text-sm">すべて</span>
+                </label>
+                <label className="flex items-center">
+                  <input type="radio" name="scope" value="me" checked={scope === 'me'} onChange={() => setScope('me')} className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300" />
+                  <span className="ml-2 text-sm">自分のみ</span>
+                </label>
+                <label className="flex items-center">
+                  <input type="radio" name="scope" value="friends" checked={scope === 'friends'} onChange={() => setScope('friends')} className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300" />
+                  <span className="ml-2 text-sm">フレンドのみ</span>
+                </label>
+              </div>
+            </div>
+          )}
+
           {/* Prefecture Jump */}
           <div>
             <label htmlFor="prefecture" className="block text-sm font-medium text-gray-700 mb-1">都道府県へ移動</label>
-            <select
-              id="prefecture"
-              onChange={handlePrefectureChange}
-              className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md"
-              defaultValue=""
-            >
+            <select id="prefecture" onChange={handlePrefectureChange} className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md" defaultValue="">
               <option value="" disabled>選択してください</option>
               {PREFECTURES.map((pref) => (
-                <option key={pref.name} value={`${pref.latitude},${pref.longitude}`}>
-                  {pref.name}
-                </option>
+                <option key={pref.name} value={`${pref.latitude},${pref.longitude}`}>{pref.name}</option>
               ))}
             </select>
           </div>
@@ -138,25 +159,13 @@ const FilterSidebar = ({ onApplyFilters, onFlyTo, initialFilters, isSidebarOpen,
           {/* Keyword Search */}
           <div>
             <label htmlFor="keyword" className="block text-sm font-medium text-gray-700 mb-1">キーワード</label>
-            <input
-              type="text"
-              id="keyword"
-              value={keyword}
-              onChange={(e) => setKeyword(e.target.value)}
-              className="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-              placeholder="タイトル、説明..."
-            />
+            <input type="text" id="keyword" value={keyword} onChange={(e) => setKeyword(e.target.value)} className="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm" placeholder="タイトル、説明..." />
           </div>
 
           {/* Category Filter */}
           <div>
             <label htmlFor="category" className="block text-sm font-medium text-gray-700 mb-1">カテゴリ</label>
-            <select
-              id="category"
-              value={categoryId}
-              onChange={(e) => setCategoryId(e.target.value)}
-              className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md"
-            >
+            <select id="category" value={categoryId} onChange={(e) => setCategoryId(e.target.value)} className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md">
               <option value="">すべてのカテゴリ</option>
               {categories.map((cat) => (
                 <option key={cat.id} value={cat.id}>{cat.name}</option>
@@ -168,31 +177,16 @@ const FilterSidebar = ({ onApplyFilters, onFlyTo, initialFilters, isSidebarOpen,
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">発見日</label>
             <div className="flex items-center space-x-2 mt-1">
-              <input
-                type="date"
-                value={startDate}
-                onChange={(e) => setStartDate(e.target.value)}
-                className="block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-              />
+              <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm" />
               <span className="text-gray-500">〜</span>
-              <input
-                type="date"
-                value={endDate}
-                onChange={(e) => setEndDate(e.target.value)}
-                className="block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-              />
+              <input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} className="block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm" />
             </div>
           </div>
 
           {/* Time of Day Filter */}
           <div>
             <label htmlFor="timeOfDay" className="block text-sm font-medium text-gray-700 mb-1">時間帯</label>
-            <select
-              id="timeOfDay"
-              value={timeOfDay}
-              onChange={(e) => setTimeOfDay(e.target.value)}
-              className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md"
-            >
+            <select id="timeOfDay" value={timeOfDay} onChange={(e) => setTimeOfDay(e.target.value)} className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md">
               <option value="all">すべての時間帯</option>
               <option value="morning">朝 (5:00-9:59)</option>
               <option value="daytime">昼 (10:00-15:59)</option>
@@ -200,20 +194,13 @@ const FilterSidebar = ({ onApplyFilters, onFlyTo, initialFilters, isSidebarOpen,
             </select>
           </div>
 
-          {/* Month Only Filter (Multiple Selection) */}
+          {/* Month Only Filter */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">月で絞り込み</label>
             <div className="mt-1 grid grid-cols-3 gap-2 text-sm">
               {months.map((month) => (
                 <div key={month.value} className="flex items-center">
-                  <input
-                    type="checkbox"
-                    id={`month-${month.value}`}
-                    value={month.value}
-                    checked={selectedMonths.includes(month.value)}
-                    onChange={() => handleMonthChange(month.value)}
-                    className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
-                  />
+                  <input type="checkbox" id={`month-${month.value}`} value={month.value} checked={selectedMonths.includes(month.value)} onChange={() => handleMonthChange(month.value)} className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded" />
                   <label htmlFor={`month-${month.value}`} className="ml-2 text-gray-900">{month.label}</label>
                 </div>
               ))}
@@ -223,18 +210,8 @@ const FilterSidebar = ({ onApplyFilters, onFlyTo, initialFilters, isSidebarOpen,
 
         {/* Action Buttons */}
         <div className="absolute bottom-0 left-0 right-0 p-4 bg-white border-t border-gray-200 flex justify-end space-x-3">
-          <button
-            onClick={handleReset}
-            className="px-6 py-2 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300 transition-colors"
-          >
-            リセット
-          </button>
-          <button
-            onClick={handleApply}
-            className="px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
-          >
-            適用
-          </button>
+          <button onClick={handleReset} className="px-6 py-2 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300 transition-colors">リセット</button>
+          <button onClick={handleApply} className="px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors">適用</button>
         </div>
       </div>
     </div>

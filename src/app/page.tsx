@@ -69,6 +69,7 @@ export default function HomePage() {
     endDate: '',
     timeOfDay: 'all',
     monthOnly: null,
+    scope: 'all', // Add scope to initial filters
   });
 
   const [mapBounds, setMapBounds] = useState<{ minLat: number; maxLat: number; minLng: number; maxLng: number } | null>(null);
@@ -141,6 +142,9 @@ export default function HomePage() {
       if (filters.timeOfDay && filters.timeOfDay !== 'all') {
         params.append('timeOfDay', filters.timeOfDay);
       }
+      if (filters.scope && filters.scope !== 'all') { // Add scope to params
+        params.append('scope', filters.scope);
+      }
       if (mapBounds) {
         params.append('minLat', mapBounds.minLat.toString());
         params.append('maxLat', mapBounds.maxLat.toString());
@@ -199,12 +203,14 @@ export default function HomePage() {
     }
   }, 500), []);
 
-  const handleLogout = async () => {
+  const handleLogout = useCallback(async () => {
     if (window.confirm('本当にログアウトしますか？')) {
       try {
         const response = await fetch('/api/auth/logout', { method: 'POST' });
         if (response.ok) {
           setCurrentUser(null);
+          // Reset scope to 'all' on logout to avoid confusion
+          setFilters(prev => ({ ...prev, scope: 'all' }));
           debouncedFetchEntries();
         } else {
           alert('ログアウトに失敗しました。');
@@ -214,7 +220,7 @@ export default function HomePage() {
         alert('ログアウト中にエラーが発生しました。');
       }
     }
-  };
+  }, [debouncedFetchEntries]);
 
   const handleDelete = useCallback(async (id: string) => {
     if (window.confirm('本当にこの日記を削除しますか？')) {
@@ -372,7 +378,8 @@ export default function HomePage() {
         onClose={() => setIsSidebarOpen(false)}
         onApplyFilters={handleApplyFilters}
         onFlyTo={handleFlyTo}
-        initialFilters={{ q: filters.q, categoryId: filters.categoryId, startDate: filters.startDate, endDate: filters.endDate, timeOfDay: filters.timeOfDay, monthOnly: filters.monthOnly }}
+        isLoggedIn={!!currentUser} // Pass login status
+        initialFilters={filters} // Pass the whole filters object
       />
       {isSidebarOpen && <div className="fixed inset-0 bg-black opacity-50 z-40" onClick={() => setIsSidebarOpen(false)}></div>}
 
