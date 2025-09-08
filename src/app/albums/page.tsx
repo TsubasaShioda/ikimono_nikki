@@ -14,8 +14,6 @@ interface DiaryEntry {
   id: string;
   title: string;
   imageUrl: string | null;
-  latitude: number;  // Add latitude for linking
-  longitude: number; // Add longitude for linking
   user: {
     username: string;
   };
@@ -198,7 +196,7 @@ export default function AlbumsPage() {
                   <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
                     {bookmarks.length > 0 ? bookmarks.map(bookmark => (
                       <div key={bookmark.id} className="bg-white rounded-lg shadow overflow-hidden group relative">
-                        <Link href={`/?lat=${bookmark.diaryEntry.latitude}&lng=${bookmark.diaryEntry.longitude}&zoom=15`}>
+                        <Link href={`/entries/${bookmark.diaryEntry.id}`} className="block hover:bg-gray-50">
                             {bookmark.diaryEntry.imageUrl && (
                                 <Image src={bookmark.diaryEntry.imageUrl} alt={bookmark.diaryEntry.title} width={300} height={200} className="w-full h-40 object-cover" />
                             )}

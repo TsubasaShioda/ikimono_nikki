@@ -31,6 +31,15 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
 
     const entry = await prisma.diaryEntry.findUnique({
       where: { id },
+      include: {
+        user: {
+          select: {
+            id: true,
+            username: true,
+            iconUrl: true,
+          }
+        }
+      }
     });
 
     if (!entry) {
