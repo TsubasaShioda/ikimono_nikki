@@ -12,7 +12,7 @@ interface UserProfile {
   username: string;
   iconUrl: string | null;
   description?: string | null;
-  hiddenId?: string; // 非表示設定のIDを追加
+  hiddenId?: string; // For un-hiding
 }
 
 interface FriendRequest {
@@ -71,8 +71,10 @@ function UserProfileModal({ user, onClose, router }: UserProfileModalProps) {
   );
 }
 
+// --- Main FriendsPage Component ---
 export default function FriendsPage() {
   // --- STATE MANAGEMENT ---
+  const [activeTab, setActiveTab] = useState<'friends' | 'requests' | 'hidden'>('friends');
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<UserProfile[]>([]);
   const [loadingSearch, setLoadingSearch] = useState(false);
@@ -119,14 +121,10 @@ export default function FriendsPage() {
       const response = await fetch('/api/hidden-users');
       const data = await response.json();
       if (response.ok) {
-        // hiddenUsersはhiddenUserオブジェクトを持つ配列なので、UserProfile[]に変換
         setHiddenUsers(data.hiddenUsers.map((hu: any) => ({ ...hu.hiddenUser, hiddenId: hu.id })));
       }
-    } catch (err) {
-      console.error('Failed to fetch hidden users', err);
-    } finally {
-      setLoadingHiddenUsers(false);
-    }
+    } catch (err) { console.error('Failed to fetch hidden users', err); }
+    finally { setLoadingHiddenUsers(false); }
   }, []);
 
   useEffect(() => {
@@ -160,9 +158,7 @@ export default function FriendsPage() {
   
   useEffect(() => {
     debouncedSearch(searchQuery);
-    return () => {
-      debouncedSearch.cancel();
-    };
+    return () => debouncedSearch.cancel();
   }, [searchQuery, debouncedSearch]);
 
   // --- ACTION HANDLERS ---
@@ -190,18 +186,10 @@ export default function FriendsPage() {
 
   const handleRespondToRequest = async (friendshipId: string, status: 'ACCEPTED' | 'DECLINED') => {
     try {
-      const response = await fetch(`/api/friends/requests/${friendshipId}`,
-        {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ status }),
-        }
-      );
+      const response = await fetch(`/api/friends/requests/${friendshipId}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ status }) });
       if (response.ok) {
         setFriendRequests((prev) => prev.filter((req) => req.id !== friendshipId));
-        if (status === 'ACCEPTED') {
-          fetchFriends();
-        }
+        if (status === 'ACCEPTED') fetchFriends();
       } else {
         const data = await response.json();
         alert(`応答エラー: ${data.message || '不明なエラー'}`);
@@ -215,9 +203,7 @@ export default function FriendsPage() {
   const handleRemoveFriend = async (friendshipId: string) => {
     if (!window.confirm('本当にこのフレンドを解除しますか？')) return;
     try {
-      const response = await fetch(`/api/friends/${friendshipId}`, {
-        method: 'DELETE',
-      });
+      const response = await fetch(`/api/friends/${friendshipId}`, { method: 'DELETE' });
       if (response.ok) {
         setFriends((prev) => prev.filter((friend) => friend.friendshipId !== friendshipId));
         alert('フレンドを解除しました。');
@@ -234,9 +220,7 @@ export default function FriendsPage() {
   const handleUnhideUser = async (hiddenUserId: string) => {
     if (!window.confirm('本当にこのユーザーの非表示設定を解除しますか？')) return;
     try {
-      const response = await fetch(`/api/hidden-users/${hiddenUserId}`, {
-        method: 'DELETE',
-      });
+      const response = await fetch(`/api/hidden-users/${hiddenUserId}`, { method: 'DELETE' });
       if (response.ok) {
         setHiddenUsers((prev) => prev.filter((user) => user.id !== hiddenUserId));
         alert('ユーザーの非表示設定を解除しました。');
@@ -254,11 +238,8 @@ export default function FriendsPage() {
     try {
       const response = await fetch(`/api/users/${userId}`);
       const data = await response.json();
-      if (response.ok) {
-        setSelectedUserForProfile(data.user);
-      } else {
-        alert(`プロフィールの取得に失敗しました: ${data.message || '不明なエラー'}`);
-      }
+      if (response.ok) setSelectedUserForProfile(data.user);
+      else alert(`プロフィールの取得に失敗しました: ${data.message || '不明なエラー'}`);
     } catch (err) {
       console.error('プロフィール取得エラー:', err);
       alert('プロフィールの取得中にエラーが発生しました。');
@@ -273,136 +254,92 @@ export default function FriendsPage() {
     return { text: 'フレンド申請', disabled: false, className: 'bg-indigo-600 hover:bg-indigo-700' };
   };
 
-  const onCloseProfileModal = () => {
-    setSelectedUserForProfile(null);
-  };
+  const onCloseProfileModal = () => setSelectedUserForProfile(null);
+
+  // --- RENDER HELPER for list items ---
+  const renderUserItem = (user: UserProfile, actionButton: React.ReactNode) => (
+    <div key={user.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-md">
+      <div className="flex items-center cursor-pointer" onClick={() => handleViewProfile(user.id)}>
+        <div className="w-10 h-10 rounded-full overflow-hidden bg-gray-200 flex items-center justify-center">
+          {user.iconUrl ? <Image src={user.iconUrl} alt="" width={40} height={40} className="w-full h-full object-cover" /> : <svg className="w-8 h-8 text-gray-500" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd"></path></svg>}
+        </div>
+        <span className="ml-4 font-medium text-gray-800">{user.username}</span>
+      </div>
+      {actionButton}
+    </div>
+  );
 
   // --- RENDER ---
   return (
     <div className="min-h-screen bg-gray-100 p-4 sm:p-6 lg:p-8">
       <div className="max-w-4xl mx-auto bg-white p-6 rounded-lg shadow-md">
-        <header className="mb-8">
+        <header className="mb-6">
           <h1 className="text-3xl font-bold text-gray-900">フレンド管理</h1>
-          <p className="text-gray-600 mt-1">ユーザーを検索してフレンド申請を送ったり、受信した申請を確認したりできます。</p>
+          <p className="text-gray-600 mt-1">フレンドの管理、申請の確認、ユーザーの検索ができます。</p>
           <div className="mt-4"><Link href="/" className="text-indigo-600 hover:text-indigo-800 font-medium">&larr; ホームに戻る</Link></div>
         </header>
 
-        {/* Friend Requests Section */}
-        <section className="mb-8">
-          <h2 className="text-2xl font-semibold text-gray-800 mb-4">受信したフレンド申請</h2>
-          {loadingRequests ? (
-            <p className="text-gray-500">読み込み中...</p>
-          ) : friendRequests.length > 0 ? (
-            <div className="space-y-3">
-              {friendRequests.map((req) => (
-                <div key={req.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-md">
-                  <div className="flex items-center cursor-pointer" onClick={() => handleViewProfile(req.requester.id)}>
-                    <div className="w-10 h-10 rounded-full overflow-hidden bg-gray-200 flex items-center justify-center">
-                      {req.requester.iconUrl ? <Image src={req.requester.iconUrl} alt="" width={40} height={40} className="w-full h-full object-cover" /> : <svg className="w-8 h-8 text-gray-500" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd"></path></svg>}
-                    </div>
-                    <span className="ml-4 font-medium text-gray-800">{req.requester.username}</span>
-                  </div>
-                  <div className="flex space-x-2">
-                    <button onClick={() => handleRespondToRequest(req.id, 'ACCEPTED')} className="px-3 py-1.5 bg-green-600 text-white text-sm font-semibold rounded-md hover:bg-green-700">承認</button>
-                    <button onClick={() => handleRespondToRequest(req.id, 'DECLINED')} className="px-3 py-1.5 bg-red-600 text-white text-sm font-semibold rounded-md hover:bg-red-700">拒否</button>
-                  </div>
+        {/* Tab Navigation */}
+        <div className="border-b border-gray-200 mb-6">
+          <nav className="-mb-px flex space-x-6" aria-label="Tabs">
+            <button onClick={() => setActiveTab('friends')} className={`${activeTab === 'friends' ? 'border-indigo-500 text-indigo-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'} whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm`}>フレンド</button>
+            <button onClick={() => setActiveTab('requests')} className={`${activeTab === 'requests' ? 'border-indigo-500 text-indigo-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'} whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm`}>受信した申請 <span className="ml-1.5 rounded-full bg-indigo-100 text-indigo-600 px-2 py-0.5 text-xs">{friendRequests.length}</span></button>
+            <button onClick={() => setActiveTab('hidden')} className={`${activeTab === 'hidden' ? 'border-indigo-500 text-indigo-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'} whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm`}>非表示ユーザー</button>
+          </nav>
+        </div>
+
+        {/* Tab Content */}
+        <div>
+          {activeTab === 'friends' && (
+            <section>
+              <h2 className="text-2xl font-semibold text-gray-800 mb-4">あなたのフレンド</h2>
+              {loadingFriends ? <p className="text-gray-500">読み込み中...</p> : friends.length > 0 ? (
+                <div className="space-y-3">
+                  {friends.map((friend) => renderUserItem(friend, <button onClick={() => handleRemoveFriend(friend.friendshipId)} className="px-3 py-1.5 bg-gray-500 text-white text-sm font-semibold rounded-md hover:bg-gray-600">フレンド解除</button>))}
                 </div>
-              ))}
-            </div>
-          ) : (
-            <p className="text-gray-500 italic">受信したフレンド申請はありません。</p>
+              ) : <p className="text-gray-500 italic">まだフレンドはいません。</p>}
+              
+              <h2 className="text-2xl font-semibold text-gray-800 mt-10 mb-4">ユーザーを探す</h2>
+              <div className="relative">
+                <input type="search" placeholder="ユーザー名で検索..." className="w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 text-gray-900" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
+              </div>
+              {searchError && <p className="text-red-500 mt-2">{searchError}</p>}
+              <div className="mt-4 space-y-3">
+                {loadingSearch ? <p className="text-gray-500">検索中...</p> : searchResults.map((user) => {
+                  const buttonState = getButtonState(user.id);
+                  return renderUserItem(user, <button onClick={() => handleSendRequest(user.id)} disabled={buttonState.disabled} className={`px-4 py-1.5 text-white text-sm font-semibold rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 ${buttonState.className}`}>{buttonState.text}</button>);
+                })}
+              </div>
+            </section>
           )}
-        </section>
 
-        {/* Friends List Section */}
-        <section className="mb-8">
-          <h2 className="text-2xl font-semibold text-gray-800 mb-4">あなたのフレンド</h2>
-          {loadingFriends ? (
-            <p className="text-gray-500">読み込み中...</p>
-          ) : friends.length > 0 ? (
-            <div className="space-y-3">
-              {friends.map((friend) => (
-                <div key={friend.friendshipId} className="flex items-center justify-between p-3 bg-gray-50 rounded-md">
-                  <div className="flex items-center cursor-pointer" onClick={() => handleViewProfile(friend.id)}>
-                    <div className="w-10 h-10 rounded-full overflow-hidden bg-gray-200 flex items-center justify-center">
-                      {friend.iconUrl ? <Image src={friend.iconUrl} alt="" width={40} height={40} className="w-full h-full object-cover" /> : <svg className="w-8 h-8 text-gray-500" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd"></path></svg>}
+          {activeTab === 'requests' && (
+            <section>
+              <h2 className="text-2xl font-semibold text-gray-800 mb-4">受信したフレンド申請</h2>
+              {loadingRequests ? <p className="text-gray-500">読み込み中...</p> : friendRequests.length > 0 ? (
+                <div className="space-y-3">
+                  {friendRequests.map((req) => renderUserItem(req.requester, 
+                    <div className="flex space-x-2">
+                      <button onClick={() => handleRespondToRequest(req.id, 'ACCEPTED')} className="px-3 py-1.5 bg-green-600 text-white text-sm font-semibold rounded-md hover:bg-green-700">承認</button>
+                      <button onClick={() => handleRespondToRequest(req.id, 'DECLINED')} className="px-3 py-1.5 bg-red-600 text-white text-sm font-semibold rounded-md hover:bg-red-700">拒否</button>
                     </div>
-                    <span className="ml-4 font-medium text-gray-800">{friend.username}</span>
-                  </div>
-                  <button onClick={() => handleRemoveFriend(friend.friendshipId)} className="px-3 py-1.5 bg-gray-500 text-white text-sm font-semibold rounded-md hover:bg-gray-600">フレンド解除</button>
+                  ))}
                 </div>
-              ))}
-            </div>
-          ) : (
-            <p className="text-gray-500 italic">まだフレンドはいません。</p>
+              ) : <p className="text-gray-500 italic">受信したフレンド申請はありません。</p>}
+            </section>
           )}
-        </section>
 
-        {/* Hidden Users Section */}
-        <section className="mb-8">
-          <h2 className="text-2xl font-semibold text-gray-800 mb-4">非表示中のユーザー</h2>
-          {loadingHiddenUsers ? (
-            <p className="text-gray-500">読み込み中...</p>
-          ) : hiddenUsers.length > 0 ? (
-            <div className="space-y-3">
-              {hiddenUsers.map((user) => (
-                <div key={user.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-md">
-                  <div className="flex items-center cursor-pointer" onClick={() => handleViewProfile(user.id)}>
-                    <div className="w-10 h-10 rounded-full overflow-hidden bg-gray-200 flex items-center justify-center">
-                      {user.iconUrl ? <Image src={user.iconUrl} alt="" width={40} height={40} className="w-full h-full object-cover" /> : <svg className="w-8 h-8 text-gray-500" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd"></path></svg>}
-                    </div>
-                    <span className="ml-4 font-medium text-gray-800">{user.username}</span>
-                  </div>
-                  <button onClick={() => handleUnhideUser(user.hiddenId!)} className="px-3 py-1.5 bg-blue-600 text-white text-sm font-semibold rounded-md hover:bg-blue-700">非表示解除</button>
+          {activeTab === 'hidden' && (
+            <section>
+              <h2 className="text-2xl font-semibold text-gray-800 mb-4">非表示中のユーザー</h2>
+              {loadingHiddenUsers ? <p className="text-gray-500">読み込み中...</p> : hiddenUsers.length > 0 ? (
+                <div className="space-y-3">
+                  {hiddenUsers.map((user) => renderUserItem(user, <button onClick={() => handleUnhideUser(user.id)} className="px-3 py-1.5 bg-blue-600 text-white text-sm font-semibold rounded-md hover:bg-blue-700">非表示解除</button>))}
                 </div>
-              ))}
-            </div>
-          ) : (
-            <p className="text-gray-500 italic">非表示中のユーザーはいません。</p>
+              ) : <p className="text-gray-500 italic">非表示中のユーザーはいません。</p>}
+            </section>
           )}
-        </section>
-
-        {/* User Search Section */}
-        <section>
-          <h2 className="text-2xl font-semibold text-gray-800 mb-4">ユーザーを探す</h2>
-          <div className="relative">
-            <input
-              type="search"
-              placeholder="ユーザー名で検索..."
-              className="w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 text-gray-900"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-            />
-          </div>
-          {searchError && <p className="text-red-500 mt-2">{searchError}</p>}
-          <div className="mt-4 space-y-3">
-            {loadingSearch ? (
-              <p className="text-gray-500">検索中...</p>
-            ) : (
-              searchResults.map((user) => {
-                const buttonState = getButtonState(user.id);
-                return (
-                  <div key={user.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-md">
-                    <div className="flex items-center cursor-pointer" onClick={() => handleViewProfile(user.id)}>
-                      <div className="w-10 h-10 rounded-full overflow-hidden bg-gray-200 flex items-center justify-center">
-                        {user.iconUrl ? <Image src={user.iconUrl} alt="" width={40} height={40} className="w-full h-full object-cover" /> : <svg className="w-8 h-8 text-gray-500" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd"></path></svg>}
-                      </div>
-                      <span className="ml-4 font-medium text-gray-800">{user.username}</span>
-                    </div>
-                    <button
-                      onClick={() => handleSendRequest(user.id)}
-                      disabled={buttonState.disabled}
-                      className={`px-4 py-1.5 text-white text-sm font-semibold rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 ${buttonState.className}`}
-                    >
-                      {buttonState.text}
-                    </button>
-                  </div>
-                )
-              })
-            )}
-          </div>
-        </section>
-
+        </div>
       </div>
       <UserProfileModal user={selectedUserForProfile} onClose={onCloseProfileModal} router={router} />
       {selectedUserForProfile && <div className="fixed inset-0 bg-black opacity-50 z-40" onClick={onCloseProfileModal}></div>}
