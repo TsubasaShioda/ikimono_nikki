@@ -79,6 +79,7 @@ enum PrivacyLevel {
   PRIVATE
   FRIENDS_ONLY
   PUBLIC
+  PUBLIC_ANONYMOUS
 }
 
 // Enum for friendship status

@@ -53,7 +53,7 @@ export async function GET(request: NextRequest) {
     const endDate = searchParams.get('endDate');
     const timeOfDay = searchParams.get('timeOfDay');
     const monthOnlyParam = searchParams.get('monthOnly');
-    const scope = searchParams.get('scope'); // New scope filter
+    const scope = searchParams.get('scope');
 
     const whereConditions: Prisma.DiaryEntryWhereInput = {
       AND: [],
@@ -74,21 +74,20 @@ export async function GET(request: NextRequest) {
         (whereConditions.AND as Prisma.DiaryEntryWhereInput[]).push({ userId: userId });
       } else if (scope === 'friends') {
         (whereConditions.AND as Prisma.DiaryEntryWhereInput[]).push({ userId: { in: friendIds } });
-        // Also ensure we only see PUBLIC or FRIENDS_ONLY posts from friends
-        (whereConditions.AND as Prisma.DiaryEntryWhereInput[]).push({ privacyLevel: { in: [PrivacyLevel.PUBLIC, PrivacyLevel.FRIENDS_ONLY] } });
+        (whereConditions.AND as Prisma.DiaryEntryWhereInput[]).push({ privacyLevel: { in: [PrivacyLevel.PUBLIC, PrivacyLevel.FRIENDS_ONLY, PrivacyLevel.PUBLIC_ANONYMOUS] } });
       } else {
         // Default scope ('all') for logged-in user
         (whereConditions.AND as Prisma.DiaryEntryWhereInput[]).push({
           OR: [
-            { privacyLevel: PrivacyLevel.PUBLIC },
+            { privacyLevel: { in: [PrivacyLevel.PUBLIC, PrivacyLevel.PUBLIC_ANONYMOUS] } },
             { userId: userId },
             { privacyLevel: PrivacyLevel.FRIENDS_ONLY, userId: { in: friendIds } },
           ],
         });
       }
     } else {
-      // Guest user can only see public posts, regardless of scope
-      (whereConditions.AND as Prisma.DiaryEntryWhereInput[]).push({ privacyLevel: PrivacyLevel.PUBLIC });
+      // Guest user can only see public posts
+      (whereConditions.AND as Prisma.DiaryEntryWhereInput[]).push({ privacyLevel: { in: [PrivacyLevel.PUBLIC, PrivacyLevel.PUBLIC_ANONYMOUS] } });
     }
 
     // --- Other Filters ---
@@ -111,7 +110,7 @@ export async function GET(request: NextRequest) {
       (whereConditions.AND as Prisma.DiaryEntryWhereInput[]).push({ takenAt: takenAtCondition });
     }
 
-    let entries = await prisma.diaryEntry.findMany({
+    const entries = await prisma.diaryEntry.findMany({
       where: whereConditions,
       orderBy: { createdAt: 'desc' },
       select: {
@@ -122,15 +121,28 @@ export async function GET(request: NextRequest) {
       },
     });
 
-    let processedEntries = entries.map(entry => ({
-      ...entry,
-      isFriend: userId ? friendIds.includes(entry.userId) : false,
-      likesCount: entry.likes.length,
-      isLikedByCurrentUser: userId ? entry.likes.some(like => like.userId === userId) : false,
-    }));
+    // Post-process for anonymity and other calculated fields
+    let processedEntries = entries.map(entry => {
+      const isOwner = entry.userId === userId;
+      const isFriend = userId ? friendIds.includes(entry.userId) : false;
+
+      // Anonymize user if needed
+      let finalUser = entry.user;
+      if (entry.privacyLevel === 'PUBLIC_ANONYMOUS' && !isOwner && !isFriend) {
+        finalUser = { id: 'anonymous', username: '匿名ユーザー', iconUrl: '/default-avatar.svg' };
+      }
+
+      return {
+        ...entry,
+        user: finalUser,
+        isFriend: isFriend,
+        likesCount: entry.likes.length,
+        isLikedByCurrentUser: userId ? entry.likes.some(like => like.userId === userId) : false,
+      };
+    });
 
     if (timeOfDay && timeOfDay !== 'all') {
-      processedEntries = processedEntries.filter((entry: DiaryEntry) => {
+      processedEntries = processedEntries.filter((entry: any) => {
         const jstDate = new Date(new Date(entry.takenAt).toLocaleString('en-US', { timeZone: 'Asia/Tokyo' }));
         const hour = jstDate.getHours();
         switch (timeOfDay) {
@@ -145,7 +157,7 @@ export async function GET(request: NextRequest) {
     if (monthOnlyParam) {
       const targetMonths = monthOnlyParam.split(',').map(month => parseInt(month.trim(), 10)).filter(month => !isNaN(month) && month >= 1 && month <= 12);
       if (targetMonths.length > 0) {
-        processedEntries = processedEntries.filter((entry: DiaryEntry) => {
+        processedEntries = processedEntries.filter((entry: any) => {
           const jstDate = new Date(new Date(entry.takenAt).toLocaleString('en-US', { timeZone: 'Asia/Tokyo' }));
           return targetMonths.includes(jstDate.getMonth() + 1);
         });

@@ -290,7 +290,13 @@ export default function NewEntryPage() {
                     onChange={(e) => setPrivacyLevel(e.target.value as PrivacyLevel)}
                   />
                   <label htmlFor={`privacy-${level}`} className="ml-3 block text-sm font-medium text-gray-700">
-                    {level === PrivacyLevel.PUBLIC ? '公開' : level === PrivacyLevel.FRIENDS_ONLY ? 'フレンドのみ' : '非公開'}
+                    {level === PrivacyLevel.PUBLIC 
+                      ? '公開' 
+                      : level === PrivacyLevel.FRIENDS_ONLY 
+                        ? 'フレンドのみ' 
+                        : level === PrivacyLevel.PUBLIC_ANONYMOUS
+                          ? 'フレンド以外に匿名で公開'
+                          : '非公開'}
                   </label>
                 </div>
               ))}

@@ -2,4 +2,5 @@ export enum PrivacyLevel {
   PRIVATE = 'PRIVATE',
   FRIENDS_ONLY = 'FRIENDS_ONLY',
   PUBLIC = 'PUBLIC',
+  PUBLIC_ANONYMOUS = 'PUBLIC_ANONYMOUS',
 }
