@@ -27,6 +27,8 @@ model User {
   hiddenByUsers            HiddenUser[]     @relation("hiddenUserRelation")
   bookmarkAlbums           BookmarkAlbum[]
   comments                 Comment[]
+  notifications            Notification[]   @relation("notifications")
+  actedNotifications       Notification[]   @relation("actedNotifications")
 }
 
 model DiaryEntry {
@@ -47,6 +49,7 @@ model DiaryEntry {
   hiddenBy     HiddenEntry[]
   bookmarks    Bookmark[]
   comments     Comment[]
+  notifications Notification[]
 
   @@index([categoryId])
 }
@@ -171,4 +174,28 @@ model Comment {
 
   @@index([userId])
   @@index([diaryEntryId])
+}
+
+enum NotificationType {
+  FRIEND_REQUEST
+  NEW_LIKE
+  NEW_COMMENT
+}
+
+model Notification {
+  id           String           @id @default(uuid())
+  type         NotificationType
+  isRead       Boolean          @default(false)
+  createdAt    DateTime         @default(now())
+
+  recipientId  String
+  recipient    User             @relation("notifications", fields: [recipientId], references: [id], onDelete: Cascade)
+
+  actorId      String
+  actor        User             @relation("actedNotifications", fields: [actorId], references: [id], onDelete: Cascade)
+
+  diaryEntryId String?
+  diaryEntry   DiaryEntry?      @relation(fields: [diaryEntryId], references: [id], onDelete: Cascade)
+
+  @@index([recipientId])
 }

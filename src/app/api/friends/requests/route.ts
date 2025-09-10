@@ -1,5 +1,5 @@
 import { NextResponse, NextRequest } from 'next/server';
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient, NotificationType } from '@prisma/client';
 import { jwtVerify } from 'jose';
 
 const prisma = new PrismaClient();
@@ -68,7 +68,6 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ message: '自分自身にフレンド申請は送れません' }, { status: 400 });
     }
 
-    // Check if a friendship already exists or is pending
     const existingFriendship = await prisma.friendship.findFirst({
       where: {
         OR: [
@@ -90,14 +89,23 @@ export async function POST(request: NextRequest) {
         }
     }
 
-    // Create new friendship request
-    const newFriendship = await prisma.friendship.create({
-      data: {
-        requesterId,
-        addresseeId,
-        status: 'PENDING',
-      },
-    });
+    // Use a transaction to create friendship and notification together
+    const [newFriendship] = await prisma.$transaction([
+      prisma.friendship.create({
+        data: {
+          requesterId,
+          addresseeId,
+          status: 'PENDING',
+        },
+      }),
+      prisma.notification.create({
+        data: {
+          type: NotificationType.FRIEND_REQUEST,
+          recipientId: addresseeId,
+          actorId: requesterId,
+        },
+      }),
+    ]);
 
     return NextResponse.json({ message: 'フレンド申請を送信しました', friendship: newFriendship }, { status: 201 });
   } catch (error) {

@@ -1,6 +1,5 @@
-
 import { NextRequest, NextResponse } from 'next/server';
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient, NotificationType } from '@prisma/client';
 import { jwtVerify } from 'jose';
 
 const prisma = new PrismaClient();
@@ -34,7 +33,7 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
           },
         },
       },
-      orderBy: { createdAt: 'asc' }, // Show oldest comments first
+      orderBy: { createdAt: 'asc' },
     });
 
     return NextResponse.json({ comments }, { status: 200 });
@@ -52,34 +51,51 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
       return NextResponse.json({ error: '認証が必要です' }, { status: 401 });
     }
 
-    const { id } = params;
+    const { id: diaryEntryId } = params;
     const { text } = await req.json();
 
     if (!text || typeof text !== 'string' || text.trim().length === 0) {
       return NextResponse.json({ error: 'コメント本文は必須です' }, { status: 400 });
     }
 
-    // Check if the diary entry exists
-    const diaryEntry = await prisma.diaryEntry.findUnique({ where: { id: id } });
+    const diaryEntry = await prisma.diaryEntry.findUnique({ where: { id: diaryEntryId } });
     if (!diaryEntry) {
-        return NextResponse.json({ error: '対象の日記が見つかりません' }, { status: 404 });
+      return NextResponse.json({ error: '対象の日記が見つかりません' }, { status: 404 });
     }
 
-    const newComment = await prisma.comment.create({
-      data: {
-        text: text.trim(),
-        userId,
-        diaryEntryId: id,
-      },
-      include: { // Return the new comment with user info
-        user: {
+    const isOwnPost = diaryEntry.userId === userId;
+
+    // Use a transaction to create the comment and potentially a notification
+    const newComment = await prisma.$transaction(async (tx) => {
+      const comment = await tx.comment.create({
+        data: {
+          text: text.trim(),
+          userId,
+          diaryEntryId,
+        },
+        include: {
+          user: {
             select: {
-                id: true,
-                username: true,
-                iconUrl: true,
-            }
-        }
+              id: true,
+              username: true,
+              iconUrl: true,
+            },
+          },
+        },
+      });
+
+      if (!isOwnPost) {
+        await tx.notification.create({
+          data: {
+            type: NotificationType.NEW_COMMENT,
+            recipientId: diaryEntry.userId,
+            actorId: userId,
+            diaryEntryId: diaryEntryId,
+          },
+        });
       }
+
+      return comment;
     });
 
     return NextResponse.json({ comment: newComment }, { status: 201 });

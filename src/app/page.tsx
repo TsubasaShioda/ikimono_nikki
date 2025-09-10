@@ -8,6 +8,7 @@ import { debounce } from 'lodash';
 import Sidebar, { Filters } from '@/components/FilterSidebar';
 import Image from 'next/image';
 import AlbumModal from '@/components/AlbumModal';
+import NotificationBell from '@/components/NotificationBell'; // Import NotificationBell
 
 const MapComponent = dynamic(
   () => import('../components/MapComponent'),
@@ -21,7 +22,7 @@ interface DiaryEntry {
   imageUrl: string | null;
   latitude: number;
   longitude: number;
-  privacyLevel: 'PRIVATE' | 'FRIENDS_ONLY' | 'PUBLIC';
+  privacyLevel: 'PRIVATE' | 'FRIENDS_ONLY' | 'PUBLIC' | 'PUBLIC_ANONYMOUS';
   takenAt: string;
   createdAt: string;
   userId: string;
@@ -31,12 +32,14 @@ interface DiaryEntry {
     iconUrl: string | null;
   };
   likesCount: number;
+  commentsCount: number;
   isLikedByCurrentUser: boolean;
   isFriend: boolean;
 }
 
-interface RawDiaryEntry extends Omit<DiaryEntry, 'likesCount' | 'isLikedByCurrentUser'> {
+interface RawDiaryEntry extends Omit<DiaryEntry, 'likesCount' | 'isLikedByCurrentUser' | 'commentsCount'> {
   likes: { userId: string }[];
+  _count: { comments: number };
 }
 
 interface CurrentUser {
@@ -69,7 +72,7 @@ export default function HomePage() {
     endDate: '',
     timeOfDay: 'all',
     monthOnly: null,
-    scope: 'all', // Add scope to initial filters
+    scope: 'all',
   });
 
   const [mapBounds, setMapBounds] = useState<{ minLat: number; maxLat: number; minLng: number; maxLng: number } | null>(null);
@@ -142,7 +145,7 @@ export default function HomePage() {
       if (filters.timeOfDay && filters.timeOfDay !== 'all') {
         params.append('timeOfDay', filters.timeOfDay);
       }
-      if (filters.scope && filters.scope !== 'all') { // Add scope to params
+      if (filters.scope && filters.scope !== 'all') {
         params.append('scope', filters.scope);
       }
       if (mapBounds) {
@@ -158,6 +161,7 @@ export default function HomePage() {
         const processedEntries = data.entries.map((entry: RawDiaryEntry) => ({
           ...entry,
           likesCount: entry.likes.length,
+          commentsCount: entry._count.comments,
           isLikedByCurrentUser: currentUser ? entry.likes.some((like: { userId: string }) => like.userId === currentUser.id) : false,
         }));
         setEntries(processedEntries);
@@ -209,7 +213,6 @@ export default function HomePage() {
         const response = await fetch('/api/auth/logout', { method: 'POST' });
         if (response.ok) {
           setCurrentUser(null);
-          // Reset scope to 'all' on logout to avoid confusion
           setFilters(prev => ({ ...prev, scope: 'all' }));
           debouncedFetchEntries();
         } else {
@@ -336,6 +339,7 @@ export default function HomePage() {
               <Link href="/entries/my" className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700">自分の日記</Link>
               <Link href="/friends" className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700">フレンド管理</Link>
               <Link href="/albums" className="px-4 py-2 bg-yellow-600 text-white rounded-md hover:bg-yellow-700">アルバム</Link>
+              <NotificationBell />
               <Link href="/settings" className="w-10 h-10 rounded-full overflow-hidden bg-gray-200 flex items-center justify-center hover:opacity-80 transition-opacity">
                 {currentUser.iconUrl ? (
                   <Image src={currentUser.iconUrl} alt="プロフィールアイコン" width={40} height={40} className="w-full h-full object-cover" />
@@ -378,8 +382,8 @@ export default function HomePage() {
         onClose={() => setIsSidebarOpen(false)}
         onApplyFilters={handleApplyFilters}
         onFlyTo={handleFlyTo}
-        isLoggedIn={!!currentUser} // Pass login status
-        initialFilters={filters} // Pass the whole filters object
+        isLoggedIn={!!currentUser}
+        initialFilters={filters}
       />
       {isSidebarOpen && <div className="fixed inset-0 bg-black opacity-50 z-40" onClick={() => setIsSidebarOpen(false)}></div>}
 
