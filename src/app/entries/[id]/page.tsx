@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
+import CommentSection from '@/components/CommentSection'; // Import the new component
 
 // This type should ideally be shared
 interface DiaryEntry {
@@ -13,7 +14,7 @@ interface DiaryEntry {
   imageUrl: string | null;
   latitude: number;
   longitude: number;
-  privacyLevel: 'PRIVATE' | 'FRIENDS_ONLY' | 'PUBLIC';
+  privacyLevel: 'PRIVATE' | 'FRIENDS_ONLY' | 'PUBLIC' | 'PUBLIC_ANONYMOUS';
   takenAt: string;
   createdAt: string;
   userId: string;
@@ -24,6 +25,10 @@ interface DiaryEntry {
   };
 }
 
+interface CurrentUser {
+  id: string;
+}
+
 export default function EntryDetailPage() {
   const params = useParams();
   const { id } = params;
@@ -31,7 +36,25 @@ export default function EntryDetailPage() {
   const [entry, setEntry] = useState<DiaryEntry | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [currentUser, setCurrentUser] = useState<CurrentUser | null>(null);
 
+  // Fetch current user
+  useEffect(() => {
+    const fetchCurrentUser = async () => {
+      try {
+        const response = await fetch('/api/auth/me');
+        if (response.ok) {
+          const data = await response.json();
+          setCurrentUser(data.user);
+        }
+      } catch (err) {
+        console.error('Failed to fetch current user:', err);
+      }
+    };
+    fetchCurrentUser();
+  }, []);
+
+  // Fetch diary entry
   useEffect(() => {
     if (id) {
       const fetchEntry = async () => {
@@ -54,6 +77,16 @@ export default function EntryDetailPage() {
       fetchEntry();
     }
   }, [id]);
+
+  const getPrivacyLevelText = (level: DiaryEntry['privacyLevel']) => {
+    switch (level) {
+      case 'PUBLIC': return '公開';
+      case 'FRIENDS_ONLY': return 'フレンドのみ';
+      case 'PRIVATE': return '非公開';
+      case 'PUBLIC_ANONYMOUS': return 'フレンド以外には匿名で公開';
+      default: return '不明';
+    }
+  };
 
   if (loading) {
     return <div className="min-h-screen flex items-center justify-center">読み込み中...</div>;
@@ -112,8 +145,15 @@ export default function EntryDetailPage() {
             <div className="mt-6 pt-4 border-t text-sm text-gray-500 space-y-2">
                 <p><strong>発見日時:</strong> {new Date(entry.takenAt).toLocaleString()}</p>
                 <p><strong>投稿日時:</strong> {new Date(entry.createdAt).toLocaleString()}</p>
-                <p><strong>公開範囲:</strong> {entry.privacyLevel === 'PUBLIC' ? '公開' : entry.privacyLevel === 'FRIENDS_ONLY' ? 'フレンドのみ' : '非公開'}</p>
+                <p><strong>公開範囲:</strong> {getPrivacyLevelText(entry.privacyLevel)}</p>
             </div>
+
+            {/* --- Comment Section --- */}
+            <CommentSection 
+              entryId={entry.id} 
+              currentUserId={currentUser?.id || null} 
+              entryAuthorId={entry.userId} 
+            />
         </div>
       </main>
     </div>

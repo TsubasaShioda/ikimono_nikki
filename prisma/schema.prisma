@@ -26,6 +26,7 @@ model User {
   hidingUsers              HiddenUser[]     @relation("hidingUserRelation")
   hiddenByUsers            HiddenUser[]     @relation("hiddenUserRelation")
   bookmarkAlbums           BookmarkAlbum[]
+  comments                 Comment[]
 }
 
 model DiaryEntry {
@@ -40,14 +41,14 @@ model DiaryEntry {
   takenAt      DateTime
   createdAt    DateTime     @default(now())
   privacyLevel PrivacyLevel @default(PRIVATE)
-  // New fields for category
   categoryId   String?
   category     Category?    @relation(fields: [categoryId], references: [id])
   likes        Like[]
   hiddenBy     HiddenEntry[]
   bookmarks    Bookmark[]
+  comments     Comment[]
 
-  @@index([categoryId]) // Add index for categoryId
+  @@index([categoryId])
 }
 
 model Category {
@@ -74,7 +75,6 @@ model Friendship {
   @@index([addresseeId])
 }
 
-// Enum for privacy level
 enum PrivacyLevel {
   PRIVATE
   FRIENDS_ONLY
@@ -82,7 +82,6 @@ enum PrivacyLevel {
   PUBLIC_ANONYMOUS
 }
 
-// Enum for friendship status
 enum FriendshipStatus {
   PENDING
   ACCEPTED
@@ -98,15 +97,15 @@ model Like {
   user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
   diaryEntry DiaryEntry @relation(fields: [diaryEntryId], references: [id], onDelete: Cascade)
 
-  @@unique([userId, diaryEntryId]) // ユーザーが同じ投稿に複数回いいねできないようにする
+  @@unique([userId, diaryEntryId])
   @@index([userId])
   @@index([diaryEntryId])
 }
 
 model HiddenEntry {
   id        String   @id @default(uuid())
-  userId    String // ユーザー
-  entryId   String // 日記
+  userId    String
+  entryId   String
   createdAt DateTime @default(now())
 
   user  User @relation("hidingUser", fields: [userId], references: [id], onDelete: Cascade)
@@ -119,8 +118,8 @@ model HiddenEntry {
 
 model HiddenUser {
   id           String   @id @default(uuid())
-  userId       String // 非表示にしたユーザー
-  hiddenUserId String // 非表示にされたユーザー
+  userId       String
+  hiddenUserId String
   createdAt    DateTime @default(now())
 
   user       User @relation("hidingUserRelation", fields: [userId], references: [id], onDelete: Cascade)
@@ -156,4 +155,20 @@ model Bookmark {
   @@unique([diaryEntryId, bookmarkAlbumId])
   @@index([diaryEntryId])
   @@index([bookmarkAlbumId])
+}
+
+model Comment {
+  id           String   @id @default(uuid())
+  text         String   @db.Text
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  diaryEntryId String
+  diaryEntry   DiaryEntry @relation(fields: [diaryEntryId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([diaryEntryId])
 }

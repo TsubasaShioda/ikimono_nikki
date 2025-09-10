@@ -64,7 +64,7 @@ interface DiaryEntry {
   imageUrl: string | null;
   latitude: number;
   longitude: number;
-  privacyLevel: 'PRIVATE' | 'FRIENDS_ONLY' | 'PUBLIC';
+  privacyLevel: 'PRIVATE' | 'FRIENDS_ONLY' | 'PUBLIC' | 'PUBLIC_ANONYMOUS';
   takenAt: string;
   createdAt: string;
   userId: string;
@@ -74,6 +74,7 @@ interface DiaryEntry {
     iconUrl: string | null;
   };
   likesCount: number;
+  commentsCount: number; // Add commentsCount
   isLikedByCurrentUser: boolean;
   isFriend: boolean;
 }
@@ -90,7 +91,7 @@ interface MapComponentProps {
   onMapViewChange: (view: { center: [number, number], zoom: number }) => void;
   onHideEntry: (entryId: string) => void;
   onHideUser: (userId: string) => void;
-  onOpenAlbumModal: (diaryEntryId: string) => void;
+  onOpenBookmarkModal: (diaryEntryId: string) => void;
 }
 
 export default function MapComponent({ center, zoom, flyToCoords, entries, currentUserId, onDelete, onLikeToggle, onBoundsChange, onMapViewChange, onHideEntry, onHideUser, onOpenBookmarkModal }: MapComponentProps) {
@@ -124,7 +125,7 @@ export default function MapComponent({ center, zoom, flyToCoords, entries, curre
 
   const getMarkerIcon = useCallback((entry: DiaryEntry) => {
     if (currentUserId === entry.userId) return myPostIcon;
-    if (entry.privacyLevel === 'PUBLIC') return publicPostIcon;
+    if (entry.privacyLevel === 'PUBLIC' || entry.privacyLevel === 'PUBLIC_ANONYMOUS') return publicPostIcon;
     if (entry.privacyLevel === 'FRIENDS_ONLY' && entry.isFriend) return friendsOnlyPostIcon;
     return otherPostIcon;
   }, [currentUserId, myPostIcon, publicPostIcon, friendsOnlyPostIcon, otherPostIcon]);
@@ -224,14 +225,14 @@ export default function MapComponent({ center, zoom, flyToCoords, entries, curre
                     <Image src={entry.imageUrl} alt={entry.title} width={256} height={128} className="object-cover rounded-md mb-2 hover:opacity-90 transition-opacity" />
                   </a>
                 )}
-                <p className="text-gray-700 text-sm mb-2">{entry.description || '説明なし'}</p>
+                <p className="text-gray-700 text-sm mb-2 line-clamp-3">{entry.description || '説明なし'}</p>
                 <p className="text-gray-500 text-xs mb-1">発見日時: {new Date(entry.takenAt).toLocaleString()}</p>
                 
-                <div className="mt-3 flex items-center space-x-2">
+                <div className="mt-3 flex items-center space-x-2 flex-wrap gap-y-2">
                   <button
                     onClick={() => onLikeToggle(entry.id)}
                     disabled={!currentUserId}
-                    className={`flex items-center space-x-1 px-3 py-1 rounded-md text-sm transition-colors ${ 
+                    className={`flex items-center space-x-1 px-3 py-1 rounded-full text-xs transition-colors ${ 
                       entry.isLikedByCurrentUser
                         ? 'bg-pink-500 text-white'
                         : 'bg-gray-200 text-gray-700'
@@ -246,19 +247,26 @@ export default function MapComponent({ center, zoom, flyToCoords, entries, curre
                   <button
                     onClick={() => onOpenBookmarkModal(entry.id)}
                     disabled={!currentUserId}
-                    className={`flex items-center space-x-1 px-3 py-1 rounded-md text-sm transition-colors bg-gray-200 text-gray-700 ${!currentUserId ? 'cursor-not-allowed' : 'hover:bg-yellow-400'}`}
+                    className={`flex items-center space-x-1 px-3 py-1 rounded-full text-xs transition-colors bg-gray-200 text-gray-700 ${!currentUserId ? 'cursor-not-allowed' : 'hover:bg-yellow-400'}`}
                   >
                     <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
                       <path d="M5 4a2 2 0 012-2h6a2 2 0 012 2v14l-5-3.125L5 18V4z" />
                     </svg>
-                    <span>しおり</span>
+                    <span>アルバム</span>
                   </button>
+
+                  <Link href={`/entries/${entry.id}`} className="flex items-center space-x-1 px-3 py-1 rounded-full text-xs transition-colors bg-gray-200 text-gray-700 hover:bg-blue-200">
+                     <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                        <path fillRule="evenodd" d="M18 10c0 3.866-3.582 7-8 7a8.94 8.94 0 01-4.113-.974L3.5 17.555a1 1 0 01-1.44-1.329l.96-1.388A7.962 7.962 0 012 10c0-3.866 3.582-7 8-7s8 3.134 8 7zM4.583 14.042a6.002 6.002 0 0011.834 0H4.583z" clipRule="evenodd" />
+                    </svg>
+                    <span>{entry.commentsCount}</span>
+                  </Link>
                 </div>
 
                 {currentUserId === entry.userId && (
-                  <div className="mt-3 flex space-x-2">
-                    <Link href={`/entries/edit/${entry.id}`} className="px-3 py-1 bg-indigo-600 rounded-md text-sm hover:bg-indigo-700">
-                      <span className="text-white">編集</span>
+                  <div className="mt-3 flex space-x-2 border-t pt-3">
+                    <Link href={`/entries/edit/${entry.id}`} className="px-3 py-1 bg-indigo-600 text-white rounded-md text-sm hover:bg-indigo-700">
+                      編集
                     </Link>
                     <button
                       onClick={() => onDelete(entry.id)}

@@ -1,5 +1,5 @@
 import { NextResponse, NextRequest } from 'next/server';
-import { PrismaClient, PrivacyLevel } from '@prisma/client'; // PrivacyLevelをインポート
+import { PrismaClient, PrivacyLevel } from '@prisma/client';
 import { jwtVerify } from 'jose';
 import { promises as fs } from 'fs';
 import path from 'path';
@@ -49,15 +49,11 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
     // 閲覧権限のチェック
     const userId = await getUserIdFromToken(request);
 
-    // If the entry is not public and not owned by the current user
-    if (entry.privacyLevel !== PrivacyLevel.PUBLIC && entry.userId !== userId) {
-      // If it's friends-only, check if the current user is a friend
+    if (entry.privacyLevel !== PrivacyLevel.PUBLIC && entry.privacyLevel !== PrivacyLevel.PUBLIC_ANONYMOUS && entry.userId !== userId) {
       if (entry.privacyLevel === PrivacyLevel.FRIENDS_ONLY) {
-        if (!userId) { // Not logged in, cannot be a friend
+        if (!userId) { 
           return NextResponse.json({ message: 'この日記を閲覧する権限がありません' }, { status: 403 });
         }
-
-        // Check if the current user is a friend of the entry owner
         const friendship = await prisma.friendship.findFirst({
           where: {
             status: 'ACCEPTED',
@@ -65,19 +61,34 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
               { requesterId: userId, addresseeId: entry.userId },
               { requesterId: entry.userId, addresseeId: userId },
             ],
-
           },
-
         });
-
-        if (!friendship) { // Not friends
+        if (!friendship) { 
           return NextResponse.json({ message: 'この日記を閲覧する権限がありません' }, { status: 403 });
         }
-
-      } else { // PRIVATE entry, and not the owner
+      } else { // PRIVATE
         return NextResponse.json({ message: 'この日記を閲覧する権限がありません' }, { status: 403 });
       }
+    }
 
+    // Anonymize if necessary
+    if (entry.privacyLevel === PrivacyLevel.PUBLIC_ANONYMOUS) {
+        const isOwner = entry.userId === userId;
+        if (!isOwner) {
+            const isFriend = userId ? (await prisma.friendship.findFirst({
+                where: {
+                    status: 'ACCEPTED',
+                    OR: [
+                        { requesterId: userId, addresseeId: entry.userId },
+                        { requesterId: entry.userId, addresseeId: userId },
+                    ],
+                },
+            })) !== null : false;
+
+            if (!isFriend) {
+                entry.user = { id: 'anonymous', username: '匿名ユーザー', iconUrl: '/default-avatar.svg' };
+            }
+        }
     }
 
     return NextResponse.json({ entry }, { status: 200 });
@@ -85,22 +96,18 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
     console.error('日記取得エラー:', error);
     return NextResponse.json({ message: '日記の取得中にエラーが発生しました' }, { status: 500 });
   }
-
 }
 
 export async function PUT(request: NextRequest, { params }: { params: { id: string } }) {
   try {
     const { id } = params;
-    const userId = await getUserIdFromToken(request); // 認証と権限の確認
+    const userId = await getUserIdFromToken(request);
 
     if (!userId) {
       return NextResponse.json({ message: '認証が必要です' }, { status: 401 });
     }
 
-    // 日記エントリーの存在と所有者の確認
-    const existingEntry = await prisma.diaryEntry.findUnique({
-      where: { id },
-    });
+    const existingEntry = await prisma.diaryEntry.findUnique({ where: { id } });
 
     if (!existingEntry) {
       return NextResponse.json({ message: '日記が見つかりません' }, { status: 404 });
@@ -110,7 +117,6 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
       return NextResponse.json({ message: 'この日記を更新する権限がありません' }, { status: 403 });
     }
 
-    // フォームデータの取得
     const formData = await request.formData();
     const title = formData.get('title') as string;
     const description = formData.get('description') as string;
@@ -119,50 +125,37 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
     const longitude = formData.get('longitude') ? parseFloat(formData.get('longitude') as string) : existingEntry.longitude;
     const takenAt = formData.get('takenAt') as string;
     const privacyLevel = formData.get('privacyLevel') as PrivacyLevel;
-    let imageUrl = existingEntry.imageUrl; // 既存の画像URLを初期値とする
+    let imageUrl = existingEntry.imageUrl;
 
-    // 画像ファイルの更新
     if (image) {
-      // 既存の画像があれば削除
       if (existingEntry.imageUrl) {
         const oldImagePath = path.join(process.cwd(), 'public', existingEntry.imageUrl);
-        try {
-          await fs.unlink(oldImagePath);
-        } catch (unlinkError) {
-          console.error('Failed to delete old image file:', unlinkError);
-        }
+        try { await fs.unlink(oldImagePath); } catch (e) { console.error('Failed to delete old image:', e); }
       }
-      // 新しい画像を保存
       const imageName = `${Date.now()}-${image.name}`;
       imageUrl = `/uploads/${imageName}`;
       const imagePath = path.join(process.cwd(), 'public', imageUrl);
-      const buffer = Buffer.from(await image.arrayBuffer());
-      await fs.writeFile(imagePath, buffer);
-    } else if (formData.get('image') === null && existingEntry.imageUrl) {
-      // 画像がフォームデータからnullとして送られ、既存の画像がある場合は削除
-      const oldImagePath = path.join(process.cwd(), 'public', existingEntry.imageUrl);
-      try {
-        await fs.unlink(oldImagePath);
+      await fs.writeFile(imagePath, Buffer.from(await image.arrayBuffer()));
+    } else if (formData.has('imageUrl') && !formData.get('imageUrl')) {
+        if (existingEntry.imageUrl) {
+            const oldImagePath = path.join(process.cwd(), 'public', existingEntry.imageUrl);
+            try { await fs.unlink(oldImagePath); } catch (e) { console.error('Failed to delete old image:', e); }
+        }
         imageUrl = null;
-      } catch (unlinkError) {
-        console.error('Failed to delete old image file:', unlinkError);
-      }
     }
 
-
-    // データベースの更新
     const updatedEntry = await prisma.diaryEntry.update({
-  where: { id },
-  data: {
-    title,
-    description,
-    imageUrl,
-    latitude,
-    longitude,
-    takenAt: takenAt ? new Date(takenAt) : existingEntry.takenAt,
-    privacyLevel,
-  },
-});
+      where: { id },
+      data: {
+        title,
+        description,
+        imageUrl,
+        latitude,
+        longitude,
+        takenAt: takenAt ? new Date(takenAt) : existingEntry.takenAt,
+        privacyLevel,
+      },
+    });
 
     return NextResponse.json({ entry: updatedEntry }, { status: 200 });
   } catch (error) {
@@ -180,9 +173,7 @@ export async function DELETE(request: NextRequest, { params }: { params: { id: s
       return NextResponse.json({ message: '認証が必要です' }, { status: 401 });
     }
 
-    const entryToDelete = await prisma.diaryEntry.findUnique({
-      where: { id },
-    });
+    const entryToDelete = await prisma.diaryEntry.findUnique({ where: { id } });
 
     if (!entryToDelete) {
       return NextResponse.json({ message: '日記が見つかりません' }, { status: 404 });
@@ -192,20 +183,12 @@ export async function DELETE(request: NextRequest, { params }: { params: { id: s
       return NextResponse.json({ message: 'この日記を削除する権限がありません' }, { status: 403 });
     }
 
-    // Delete associated image file if it exists
     if (entryToDelete.imageUrl) {
       const imagePath = path.join(process.cwd(), 'public', entryToDelete.imageUrl);
-      try {
-        await fs.unlink(imagePath);
-      } catch (unlinkError) {
-        console.error('Failed to delete image file:', unlinkError);
-        // Continue with database deletion even if file deletion fails
-      }
+      try { await fs.unlink(imagePath); } catch (e) { console.error('Failed to delete image:', e); }
     }
 
-    await prisma.diaryEntry.delete({
-      where: { id },
-    });
+    await prisma.diaryEntry.delete({ where: { id } });
 
     return NextResponse.json({ message: '日記が正常に削除されました' }, { status: 200 });
   } catch (error) {

@@ -113,11 +113,13 @@ export async function GET(request: NextRequest) {
     const entries = await prisma.diaryEntry.findMany({
       where: whereConditions,
       orderBy: { createdAt: 'desc' },
-      select: {
-        id: true, userId: true, title: true, description: true, imageUrl: true, latitude: true, longitude: true, takenAt: true, createdAt: true, privacyLevel: true, categoryId: true,
+      include: { // Use include to get relations and _count
         user: { select: { id: true, username: true, iconUrl: true } },
         category: { select: { id: true, name: true } },
-        likes: true,
+        likes: { select: { userId: true } },
+        _count: {
+          select: { comments: true },
+        },
       },
     });
 
@@ -137,6 +139,7 @@ export async function GET(request: NextRequest) {
         user: finalUser,
         isFriend: isFriend,
         likesCount: entry.likes.length,
+        commentsCount: entry._count.comments, // Add commentsCount
         isLikedByCurrentUser: userId ? entry.likes.some(like => like.userId === userId) : false,
       };
     });
