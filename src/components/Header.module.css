@@ -1,0 +1,171 @@
+/* ヘッダー全体 */
+.header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1rem 1.5rem;
+    background-color: white;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    z-index: 30;
+}
+
+/* ロゴ（アイコン + テキスト） */
+.logo {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    text-decoration: none;
+}
+
+.logoIcon {
+    width: 32px;
+    height: 32px;
+    color: #2e7d32; /* 深い緑 */
+}
+
+.logoText {
+    font-size: 1.5rem; /* 24px */
+    font-weight: bold;
+    color: #333;
+    display: none; /* スマホでは非表示 */
+}
+
+/* PC用のナビゲーション */
+.nav {
+    display: none; /* モバイルでは非表示 */
+    align-items: center;
+    gap: 0.75rem; /* 12px */
+}
+
+/* モバイル用のナビゲーション（ハンバーガーアイコンなど） */
+.mobileNav {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+/* アイコンボタン（ハンバーガー、フィルターなど） */
+.iconButton {
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 0.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.hamburgerIcon {
+    width: 24px;
+    height: 24px;
+    color: #333;
+}
+
+/* モバイルメニューパネル */
+.mobileMenu {
+    position: absolute;
+    top: 80px; /* ヘッダーの高さに合わせる */
+    right: 1.5rem;
+    background-color: white;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    padding: 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    z-index: 50;
+}
+
+/* --- ボタンの基本スタイル --- */
+.btn {
+    padding: 0.5rem 1rem; /* 8px 16px */
+    border-radius: 6px;
+    font-weight: 500;
+    color: white;
+    text-decoration: none;
+    transition: background-color 0.2s, color 0.2s, transform 0.1s;
+    border: none;
+    cursor: pointer;
+}
+
+.btn:hover {
+    transform: translateY(-1px);
+}
+
+/* --- ボタンの種類 --- */
+.btnPrimary {
+    background-color: #4caf50; /* 緑 */
+}
+.btnPrimary:hover {
+    background-color: #43a047;
+}
+
+.btnSecondary {
+    background-color: #a1887f; /* 茶色 */
+}
+.btnSecondary:hover {
+    background-color: #8d776f;
+}
+
+.btnTertiary {
+    background-color: #78909c; /* グレー */
+}
+.btnTertiary:hover {
+    background-color: #6b818c;
+}
+
+.btnDanger {
+    background-color: #e57373; /* ソフトな赤 */
+}
+.btnDanger:hover {
+    background-color: #ef5350;
+}
+
+/* ★★★ フィルターボタンのスタイル ★★★ */
+.btnFilter {
+    display: flex;
+    align-items: center;
+    gap: 0.5em;
+    background-color: transparent;
+    border: 2px solid #ff6347; /* 赤みがかったオレンジ */
+    color: #ff6347;
+    padding: calc(0.5rem - 2px) calc(1rem - 2px); /* ボーダー幅を考慮 */
+}
+
+.btnFilter svg {
+    color: #ff6347;
+    transition: color 0.2s;
+}
+
+.btnFilter:hover {
+    background-color: #ff6347;
+    color: white;
+}
+
+.btnFilter:hover svg {
+    color: white;
+}
+
+.iconButtonFilter svg {
+    color: #ff6347;
+}
+
+
+/* --- レスポンシブ設定 --- */
+@media (min-width: 768px) {
+    .logoText {
+        display: block; /* PCではテキスト表示 */
+    }
+    .nav {
+        display: flex; /* PCではナビゲーション表示 */
+    }
+    .mobileNav {
+        display: none; /* PCではモバイル用ナビ非表示 */
+    }
+}
+
+@media (min-width: 1280px) { 
+    .nav {
+        gap: 1rem; /* 画面が広い場合はボタンの間隔を広げる */
+    }
+}

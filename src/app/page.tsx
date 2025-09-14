@@ -9,6 +9,7 @@ import Sidebar, { Filters } from '@/components/FilterSidebar';
 import Image from 'next/image';
 import AlbumModal from '@/components/AlbumModal';
 import NotificationBell from '@/components/NotificationBell'; // Import NotificationBell
+import Header from '@/components/Header'; // Import Header
 
 const MapComponent = dynamic(
   () => import('../components/MapComponent'),
@@ -327,36 +328,11 @@ export default function HomePage() {
 
   return (
     <div className="min-h-screen bg-gray-100 flex flex-col">
-      <header className="flex justify-between items-center py-4 px-6 bg-white shadow-md z-30">
-        <h1 className="text-3xl font-bold text-gray-900">生き物日記マップ</h1>
-        <nav className="flex items-center space-x-4">
-          <button onClick={() => setIsSidebarOpen(true)} className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">
-            フィルター
-          </button>
-          {currentUser ? (
-            <>
-              <Link href="/entries/new" className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700">新しい日記を投稿</Link>
-              <Link href="/entries/my" className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700">自分の日記</Link>
-              <Link href="/friends" className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700">フレンド管理</Link>
-              <Link href="/albums" className="px-4 py-2 bg-yellow-600 text-white rounded-md hover:bg-yellow-700">アルバム</Link>
-              <NotificationBell />
-              <Link href="/settings" className="w-10 h-10 rounded-full overflow-hidden bg-gray-200 flex items-center justify-center hover:opacity-80 transition-opacity">
-                {currentUser.iconUrl ? (
-                  <Image src={currentUser.iconUrl} alt="プロフィールアイコン" width={40} height={40} className="w-full h-full object-cover" />
-                ) : (
-                  <Image src="/default-avatar.svg" alt="デフォルトアイコン" width={40} height={40} className="w-full h-full object-cover" />
-                )}
-              </Link>
-              <button onClick={handleLogout} className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700">ログアウト</button>
-            </>
-          ) : (
-            <>
-              <Link href="/auth/login" className="px-4 py-2 text-gray-600 hover:text-gray-900 border border-gray-300 rounded-md">ログイン</Link>
-              <Link href="/auth/register" className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700">新規登録</Link>
-            </>
-          )}
-        </nav>
-      </header>
+      <Header 
+        currentUser={currentUser}
+        onLogout={handleLogout}
+        onOpenSidebar={() => setIsSidebarOpen(true)}
+      />
 
       <main className="flex-grow relative z-10" style={{ height: 'calc(100vh - 88px)' }}>
         <MapComponent 

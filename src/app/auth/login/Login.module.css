@@ -1,0 +1,165 @@
+/* 方眼紙の背景 */
+.container {
+    position: fixed; /* 画面に固定 */
+    top: 0;
+    left: 0;
+    width: 100vw; /* 画面の幅100% */
+    height: 100vh; /* 画面の高さ100% */
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    /* より薄い色の線、細かい方眼に変更 */
+    background-color: #ffffff;
+    background-image:
+        linear-gradient(rgba(211, 211, 211, 0.7) 0.5px, transparent 0.5px),
+        linear-gradient(90deg, rgba(211, 211, 211, 0.7) 0.5px, transparent 0.5px);
+    background-size: 15px 15px;
+    padding: 20px;
+    box-sizing: border-box; /* paddingを含めて100%にする */
+}
+
+/* 付箋部分のスタイル */
+.post_it {
+    background-color: #fffac8;
+    padding: 30px 40px;
+    border-radius: 8px;
+    text-align: center;
+    position: relative;
+    width: 350px; /* PCでのサイズ */
+    max-width: 100%; /* はみ出さないように */
+    box-sizing: border-box;
+    box-shadow: 3px 3px 10px rgba(0, 0, 0, 0.1);
+}
+
+/* タイトル */
+.title {
+    font-size: 24px;
+    color: #333;
+    margin-bottom: 25px;
+    font-weight: 600;
+}
+
+/* 入力欄のグループ */
+.input_group {
+    margin-bottom: 20px;
+}
+
+/* ラベル（今回は使用しないが、念のため残す） */
+.label {
+    display: none;
+}
+
+/* 入力欄 */
+.input {
+    width: calc(100% - 20px);
+    padding: 12px 10px;
+    border: none;
+    border-bottom: 2px solid #ccc;
+    font-size: 16px;
+    box-sizing: border-box;
+    color: #333;
+    background-color: transparent;
+    /* 背景アニメーションの初期設定 */
+    background-image: linear-gradient(rgba(255, 215, 0, 0.4), rgba(255, 215, 0, 0.4));
+    background-position: left center;
+    background-repeat: no-repeat;
+    background-size: 0% 1.5em; /* 高さを少し調整 */
+    transition: background-size 0.4s ease-in-out;
+}
+
+.input:focus {
+    outline: none;
+    border-bottom-color: #FFD700;
+    /* フォーカス時に背景を100%表示 */
+    background-size: 100% 1.5em;
+}
+
+
+/* エラーメッセージ */
+.error {
+    color: #d9534f;
+    text-align: center;
+    margin-bottom: 15px;
+    font-size: 14px;
+}
+
+/* ボタンとリンクのコンテナ */
+.button_container {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-top: 30px;
+    gap: 25px;
+}
+
+/* ログインボタン */
+.login_button {
+    background-image: linear-gradient(#87CEEB, #87CEEB);
+    background-position: left bottom;
+    background-repeat: no-repeat;
+    background-size: 0% 3px;
+    transition: background-size 0.4s ease;
+    background-color: transparent;
+    border: none;
+    cursor: pointer;
+    font-size: 18px;
+    color: #333;
+    padding: 2px 5px;
+    font-weight: bold;
+}
+
+.login_button:hover {
+    background-size: 100% 3px;
+}
+
+/* 新規登録リンク */
+.register_link {
+    background-image: linear-gradient(#87CEEB, #87CEEB);
+    background-position: left bottom;
+    background-repeat: no-repeat;
+    background-size: 0% 3px;
+    transition: background-size 0.4s ease;
+    background-color: transparent;
+    border: none;
+    text-decoration: none;
+    font-size: 16px;
+    color: #555;
+    padding: 2px 5px;
+    white-space: nowrap; /* 単語の途中での改行を防ぐ */
+}
+
+.register_link:hover {
+    background-size: 100% 3px;
+}
+
+.link_paragraph {
+    display: flex; /* Flexboxレイアウトを適用 */
+    justify-content: center; /* 中央揃え */
+    align-items: center; /* 垂直方向中央揃え */
+    gap: 0.5em; /* テキストとリンクの間に隙間を設ける */
+    flex-wrap: wrap; /* 画面が非常に狭い場合に適切に折り返す */
+}
+
+/* ▼▼▼ スマートフォン向けのスタイル ▼▼▼ */
+@media (max-width: 480px) {
+    .post_it {
+        width: 95%; /* 画面幅の95%に */
+        padding: 25px 20px; /* 余白を少し小さく */
+    }
+
+    .title {
+        font-size: 22px; /* タイトルを少し小さく */
+    }
+
+    .input {
+        font-size: 15px;
+    }
+
+    .login_button {
+        font-size: 17px;
+    }
+
+    .register_link {
+        font-size: 15px;
+    }
+}
