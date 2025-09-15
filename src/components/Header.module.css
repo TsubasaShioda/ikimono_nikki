@@ -3,10 +3,15 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 1rem 1.5rem;
-    background-color: white;
+    padding: 1.25rem 1.5rem; /* 高さを少し大きく */
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
     z-index: 30;
+    /* 方眼紙の背景を適用 */
+    background-color: #ffffff;
+    background-image:
+        linear-gradient(rgba(211, 211, 211, 0.7) 0.5px, transparent 0.5px),
+        linear-gradient(90deg, rgba(211, 211, 211, 0.7) 0.5px, transparent 0.5px);
+    background-size: 15px 15px;
 }
 
 /* ロゴ（アイコン + テキスト） */
@@ -44,7 +49,7 @@
     gap: 1rem;
 }
 
-/* アイコンボタン（ハンバーガー、フィルターなど） */
+/* アイコンボタン（ハンバーガーなど） */
 .iconButton {
     background: none;
     border: none;
@@ -61,93 +66,85 @@
     color: #333;
 }
 
-/* モバイルメニューパネル */
-.mobileMenu {
-    position: absolute;
-    top: 80px; /* ヘッダーの高さに合わせる */
-    right: 1.5rem;
-    background-color: white;
-    border-radius: 8px;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-    padding: 1rem;
-    display: flex;
-    flex-direction: column;
-    gap: 0.75rem;
-    z-index: 50;
-}
 
-/* --- ボタンの基本スタイル --- */
+
+/* --- ボタンのスタイル --- */
 .btn {
-    padding: 0.5rem 1rem; /* 8px 16px */
+    padding: 0.5rem 1rem;
     border-radius: 6px;
     font-weight: 500;
-    color: white;
     text-decoration: none;
-    transition: background-color 0.2s, color 0.2s, transform 0.1s;
-    border: none;
     cursor: pointer;
+    background-repeat: no-repeat;
+    background-size: 0% 100%;
+    border: 2px solid transparent;
+    transition: background-size 0.3s ease-in-out, color 0.3s ease-in-out;
+    display: flex;
+    align-items: center;
+    justify-content: center; /* テキストやアイコンを中央揃え */
+    gap: 0.5em;
 }
 
 .btn:hover {
-    transform: translateY(-1px);
+    background-size: 100% 100%;
+    color: white;
+}
+.btn:hover span {
+    color: white;
+}
+.btn:hover svg {
+    color: white;
 }
 
 /* --- ボタンの種類 --- */
 .btnPrimary {
-    background-color: #4caf50; /* 緑 */
+    border-color: #4caf50;
+    color: #4caf50;
+    background-image: linear-gradient(to right, #4caf50, #4caf50);
 }
-.btnPrimary:hover {
-    background-color: #43a047;
-}
+.btnPrimary svg { color: #4caf50; }
 
 .btnSecondary {
-    background-color: #a1887f; /* 茶色 */
+    border-color: #a1887f;
+    color: #a1887f;
+    background-image: linear-gradient(to right, #a1887f, #a1887f);
 }
-.btnSecondary:hover {
-    background-color: #8d776f;
-}
+.btnSecondary svg { color: #a1887f; }
 
 .btnTertiary {
-    background-color: #78909c; /* グレー */
+    border-color: #78909c;
+    color: #78909c;
+    background-image: linear-gradient(to right, #78909c, #78909c);
 }
-.btnTertiary:hover {
-    background-color: #6b818c;
-}
+.btnTertiary svg { color: #78909c; }
 
 .btnDanger {
-    background-color: #e57373; /* ソフトな赤 */
+    border-color: #e57373;
+    color: #e57373;
+    background-image: linear-gradient(to right, #e57373, #e57373);
 }
-.btnDanger:hover {
-    background-color: #ef5350;
-}
+.btnDanger svg { color: #e57373; }
 
-/* ★★★ フィルターボタンのスタイル ★★★ */
-.btnFilter {
-    display: flex;
-    align-items: center;
-    gap: 0.5em;
-    background-color: transparent;
-    border: 2px solid #ff6347; /* 赤みがかったオレンジ */
-    color: #ff6347;
-    padding: calc(0.5rem - 2px) calc(1rem - 2px); /* ボーダー幅を考慮 */
-}
-
-.btnFilter svg {
-    color: #ff6347;
-    transition: color 0.2s;
-}
-
-.btnFilter:hover {
-    background-color: #ff6347;
+/* ★★★ 新しいフィルタータブのスタイル ★★★ */
+.filterTab {
+    position: fixed;
+    top: 50%;
+    right: 0;
+    transform: translateY(-50%);
+    background-color: #ff6347; /* 赤みがかったオレンジ */
     color: white;
+    padding: 3.25rem 0.75rem;
+    border: none;
+    clip-path: polygon(0% 15%, 100% 0%, 100% 100%, 0% 85%); /* 台形の形に切り抜く */
+    box-shadow: -2px 2px 8px rgba(0,0,0,0.2);
+    cursor: pointer;
+    z-index: 40;
+    transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
 }
 
-.btnFilter:hover svg {
-    color: white;
-}
-
-.iconButtonFilter svg {
-    color: #ff6347;
+.filterTab:hover {
+    transform: translateY(-50%) translateX(-4px); /* 少し左に動かす */
+    box-shadow: -4px 4px 12px rgba(0,0,0,0.25);
 }
 
 

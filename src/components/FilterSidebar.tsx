@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { Category } from '@prisma/client';
-import { PREFECTURES, Prefecture } from '@/lib/prefectures';
+import { PREFECTURES } from '@/lib/prefectures';
 
 export interface Filters {
   q: string;
@@ -11,7 +11,7 @@ export interface Filters {
   endDate: string;
   timeOfDay: string;
   monthOnly: number[] | null;
-  scope: 'all' | 'me' | 'friends'; // Add scope to filters
+  scope: 'all' | 'me' | 'friends';
 }
 
 interface FilterSidebarProps {
@@ -20,7 +20,7 @@ interface FilterSidebarProps {
   initialFilters: Filters;
   isSidebarOpen: boolean;
   onClose: () => void;
-  isLoggedIn: boolean; // Add prop to check if user is logged in
+  isLoggedIn: boolean;
 }
 
 const FilterSidebar = ({ onApplyFilters, onFlyTo, initialFilters, isSidebarOpen, onClose, isLoggedIn }: FilterSidebarProps) => {
@@ -90,7 +90,6 @@ const FilterSidebar = ({ onApplyFilters, onFlyTo, initialFilters, isSidebarOpen,
       monthOnly: null,
       scope: 'all',
     });
-    onClose();
   };
 
   const handleMonthChange = (month: number) => {
@@ -115,16 +114,17 @@ const FilterSidebar = ({ onApplyFilters, onFlyTo, initialFilters, isSidebarOpen,
   ];
 
   return (
-    <div className={`fixed top-0 right-0 h-full bg-white shadow-lg z-50 transform transition-transform duration-300 ease-in-out text-gray-900 ${isSidebarOpen ? 'translate-x-0' : 'translate-x-full'}`} style={{width: '320px'}}>
-      <div className="p-5 overflow-y-auto h-full pb-24">
-        <div className="flex justify-between items-center mb-6">
-            <h3 className="text-xl font-bold">フィルター</h3>
-            <button onClick={onClose} className="text-gray-500 hover:text-gray-800">
+    <div className={`fixed top-0 right-0 h-full shadow-lg z-50 transform transition-transform duration-300 ease-in-out text-gray-900 bg-[rgba(192,57,43,0.25)] backdrop-blur-sm ${isSidebarOpen ? 'translate-x-0' : 'translate-x-full'}`} style={{width: '340px'}}>
+      <div className="p-4 overflow-y-auto h-full pb-24 space-y-4">
+        <div className="flex justify-between items-center mb-4 px-2">
+            <h3 className="text-xl font-bold text-white">フィルター</h3>
+            <button onClick={onClose} className="text-white hover:text-gray-200">
                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path></svg>
             </button>
         </div>
-        <div className="space-y-5">
-          {/* Scope Filter */}
+        
+        {/* --- Filter Cards --- */}
+        <div className="bg-white/80 p-4 rounded-lg shadow">
           {isLoggedIn && (
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">表示範囲</label>
@@ -144,8 +144,9 @@ const FilterSidebar = ({ onApplyFilters, onFlyTo, initialFilters, isSidebarOpen,
               </div>
             </div>
           )}
+        </div>
 
-          {/* Prefecture Jump */}
+        <div className="bg-white/80 p-4 rounded-lg shadow">
           <div>
             <label htmlFor="prefecture" className="block text-sm font-medium text-gray-700 mb-1">都道府県へ移動</label>
             <select id="prefecture" onChange={handlePrefectureChange} className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md" defaultValue="">
@@ -155,14 +156,14 @@ const FilterSidebar = ({ onApplyFilters, onFlyTo, initialFilters, isSidebarOpen,
               ))}
             </select>
           </div>
+        </div>
 
-          {/* Keyword Search */}
+        <div className="bg-white/80 p-4 rounded-lg shadow space-y-4">
           <div>
             <label htmlFor="keyword" className="block text-sm font-medium text-gray-700 mb-1">キーワード</label>
             <input type="text" id="keyword" value={keyword} onChange={(e) => setKeyword(e.target.value)} className="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm" placeholder="タイトル、説明..." />
           </div>
 
-          {/* Category Filter */}
           <div>
             <label htmlFor="category" className="block text-sm font-medium text-gray-700 mb-1">カテゴリ</label>
             <select id="category" value={categoryId} onChange={(e) => setCategoryId(e.target.value)} className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md">
@@ -173,17 +174,15 @@ const FilterSidebar = ({ onApplyFilters, onFlyTo, initialFilters, isSidebarOpen,
             </select>
           </div>
 
-          {/* Date Range Filter */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">発見日</label>
-            <div className="flex items-center space-x-2 mt-1">
+            <div className="flex items-center mt-1 flex-col sm:flex-row sm:space-x-2 space-y-1 sm:space-y-0">
               <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm" />
               <span className="text-gray-500">〜</span>
               <input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} className="block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm" />
             </div>
           </div>
 
-          {/* Time of Day Filter */}
           <div>
             <label htmlFor="timeOfDay" className="block text-sm font-medium text-gray-700 mb-1">時間帯</label>
             <select id="timeOfDay" value={timeOfDay} onChange={(e) => setTimeOfDay(e.target.value)} className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md">
@@ -194,7 +193,6 @@ const FilterSidebar = ({ onApplyFilters, onFlyTo, initialFilters, isSidebarOpen,
             </select>
           </div>
 
-          {/* Month Only Filter */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">月で絞り込み</label>
             <div className="mt-1 grid grid-cols-3 gap-2 text-sm">
@@ -209,9 +207,9 @@ const FilterSidebar = ({ onApplyFilters, onFlyTo, initialFilters, isSidebarOpen,
         </div>
 
         {/* Action Buttons */}
-        <div className="absolute bottom-0 left-0 right-0 p-4 bg-white border-t border-gray-200 flex justify-end space-x-3">
+        <div className="absolute bottom-0 left-0 right-0 p-4 bg-white/80 backdrop-blur-sm border-t border-gray-200 flex justify-end space-x-3">
           <button onClick={handleReset} className="px-6 py-2 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300 transition-colors">リセット</button>
-          <button onClick={handleApply} className="px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors">適用</button>
+          <button onClick={handleApply} className="px-6 py-2 bg-orange-500 text-white rounded-md hover:bg-orange-600 transition-colors">適用</button>
         </div>
       </div>
     </div>

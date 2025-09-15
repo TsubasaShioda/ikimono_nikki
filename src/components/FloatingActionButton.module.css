@@ -1,0 +1,28 @@
+.fab {
+    position: fixed;
+    bottom: 2rem; /* 下からの距離 */
+    right: 2rem;  /* 右からの距離 */
+    z-index: 40;
+    width: 64px;  /* ボタンのサイズ */
+    height: 64px;
+    border-radius: 50%; /* 円形にする */
+    background-color: #4169E1; /* 濃いめの青 */
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+}
+
+.fab:hover {
+    transform: scale(1.05); /* 少し大きくする */
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.25);
+    background-color: #3a5ccc; /* ホバー時の色 */
+}
+
+.icon {
+    width: 40px;
+    height: 40px;
+    color: white;
+}

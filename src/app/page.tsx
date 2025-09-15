@@ -5,17 +5,20 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import dynamic from 'next/dynamic';
 import { debounce } from 'lodash';
-import Sidebar, { Filters } from '@/components/FilterSidebar';
+import Sidebar from '@/components/FilterSidebar';
 import Image from 'next/image';
 import AlbumModal from '@/components/AlbumModal';
-import NotificationBell from '@/components/NotificationBell'; // Import NotificationBell
-import Header from '@/components/Header'; // Import Header
+import Header from '@/components/Header';
+import FloatingActionButton from '@/components/FloatingActionButton'; // ★ FABをインポート
+import MyDiaryActionButton from '@/components/MyDiaryActionButton'; // ★ MyDiary FABをインポート
+import AlbumActionButton from '@/components/AlbumActionButton'; // ★ Album FABをインポート
 
 const MapComponent = dynamic(
   () => import('../components/MapComponent'),
   { ssr: false }
 );
 
+// (中略... インターフェース定義は変更なし)
 interface DiaryEntry {
   id: string;
   title: string;
@@ -369,6 +372,15 @@ export default function HomePage() {
         diaryEntryId={bookmarkTargetId}
         onBookmark={handleBookmark}
       />
+
+      {/* ★ FABをここに追加 (ログイン時のみ) */}
+      {currentUser && (
+        <>
+          <FloatingActionButton />
+          <MyDiaryActionButton />
+          <AlbumActionButton />
+        </>
+      )}
     </div>
   );
 }
