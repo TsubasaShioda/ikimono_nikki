@@ -1,9 +1,10 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { PrivacyLevel } from '@/lib/types'; // Import the enum
+import { PrivacyLevel } from '@/lib/types';
+import styles from './page.module.css';
 
 interface DiaryEntry {
   id: string;
@@ -15,41 +16,76 @@ interface DiaryEntry {
   createdAt: string;
 }
 
+interface Category {
+  id: string;
+  name: string;
+}
+
 export default function MyEntriesPage() {
   const [entries, setEntries] = useState<DiaryEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  
 
+  // --- フィルター用のState --- //
+  const [keyword, setKeyword] = useState('');
+  const [categoryId, setCategoryId] = useState('');
+  const [categories, setCategories] = useState<Category[]>([]);
+
+  // カテゴリ一覧を取得
   useEffect(() => {
-    const fetchMyEntries = async () => {
+    const fetchCategories = async () => {
       try {
-        const response = await fetch('/api/entries/my');
-        const data = await response.json();
-
-        if (response.ok) {
-          setEntries(data.entries);
-        } else {
-          setError(data.message || '自分の日記の取得に失敗しました。');
+        const res = await fetch('/api/categories');
+        if (res.ok) {
+          const data = await res.json();
+          setCategories(data.categories);
         }
-      } catch (err) {
-        console.error('Fetch my entries error:', err);
-        setError('自分の日記の取得中に予期せぬエラーが発生しました。');
-      } finally {
-        setLoading(false);
+      } catch (error) {
+        console.error('Failed to fetch categories', error);
       }
     };
-
-    fetchMyEntries();
+    fetchCategories();
   }, []);
 
-  const handleDelete = async (id: string) => {
+  // 日記を取得するメインの関数
+  const fetchMyEntries = useCallback(async () => {
+    setLoading(true);
+    try {
+      const params = new URLSearchParams();
+      if (keyword) params.append('q', keyword);
+      if (categoryId) params.append('categoryId', categoryId);
+
+      const response = await fetch(`/api/entries/my?${params.toString()}`);
+      const data = await response.json();
+
+      if (response.ok) {
+        setEntries(data.entries);
+      } else {
+        setError(data.message || '自分の日記の取得に失敗しました。');
+      }
+    } catch (err) {
+      console.error('Fetch my entries error:', err);
+      setError('自分の日記の取得中に予期せぬエラーが発生しました。');
+    } finally {
+      setLoading(false);
+    }
+  }, [keyword, categoryId]);
+
+  // フィルターが変更されたら日記を再取得
+  useEffect(() => {
+    const debounceFetch = setTimeout(() => {
+        fetchMyEntries();
+    }, 500); // 500msのデバウンス
+
+    return () => clearTimeout(debounceFetch);
+  }, [fetchMyEntries]);
+
+  const handleDelete = async (id: string, e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
     if (window.confirm('本当にこの日記を削除しますか？')) {
       try {
-        const response = await fetch(`/api/entries/${id}`, {
-          method: 'DELETE',
-        });
-
+        const response = await fetch(`/api/entries/${id}`, { method: 'DELETE' });
         if (response.ok) {
           setEntries(entries.filter(entry => entry.id !== id));
           alert('日記が正常に削除されました。');
@@ -64,62 +100,74 @@ export default function MyEntriesPage() {
     }
   };
 
-  if (loading) {
-    return <div className="min-h-screen flex items-center justify-center">自分の日記を読み込み中...</div>;
-  }
-
-  if (error) {
-    return <div className="min-h-screen flex items-center justify-center text-red-500">エラー: {error}</div>;
-  }
+  const getPrivacyLabel = (level: PrivacyLevel) => {
+    switch (level) {
+      case PrivacyLevel.PUBLIC: return '公開';
+      case PrivacyLevel.FRIENDS_ONLY: return 'フレンドのみ';
+      case PrivacyLevel.PUBLIC_ANONYMOUS: return '匿名で公開';
+      case PrivacyLevel.PRIVATE: return '非公開';
+      default: return '';
+    }
+  };
 
   return (
-    <div className="min-h-screen bg-gray-100 p-4">
-      <header className="flex justify-between items-center py-4 px-6 bg-white shadow-md rounded-b-lg mb-4">
-        <h1 className="text-3xl font-bold text-gray-900">自分の日記一覧</h1>
-        <nav className="space-x-4">
-          <Link href="/" className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700">
-            全体マップに戻る
-          </Link>
-          <Link href="/entries/new" className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700">
-            新しい日記を投稿
-          </Link>
-        </nav>
-      </header>
+    <div className={styles.container}>
+        <header className={styles.header}>
+            <h1 className={styles.title}>自分の日記</h1>
+        </header>
 
-      <div className="container mx-auto p-4">
-        {entries.length === 0 ? (
-          <p className="text-center text-gray-600">まだ日記がありません。新しい日記を投稿しましょう！</p>
+        {/* --- フィルターバー --- */}
+        <div className={styles.filterBar}>
+            <input 
+                type="text"
+                placeholder="キーワードで検索..."
+                value={keyword}
+                onChange={(e) => setKeyword(e.target.value)}
+                className={styles.filterInput}
+            />
+            <select 
+                value={categoryId}
+                onChange={(e) => setCategoryId(e.target.value)}
+                className={styles.filterSelect}
+            >
+                <option value="">すべてのカテゴリ</option>
+                {categories.map(cat => (
+                    <option key={cat.id} value={cat.id}>{cat.name}</option>
+                ))}
+            </select>
+        </div>
+
+        {loading ? (
+            <div className="text-center">日記を読み込み中...</div>
+        ) : error ? (
+            <div className="text-center text-red-500">エラー: {error}</div>
+        ) : entries.length === 0 ? (
+          <p className="text-center text-gray-600">該当する日記がありません。</p>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className={styles.grid}>
             {entries.map((entry) => (
-              <div key={entry.id} className="bg-white rounded-lg shadow-sm flex flex-col">
-                <Link href={`/entries/${entry.id}`} className="block hover:bg-gray-50 rounded-t-lg flex-grow">
-                  {entry.imageUrl && (
-                    <Image src={entry.imageUrl} alt={entry.title} width={320} height={128} className="object-cover rounded-t-md w-full h-40" />
-                  )}
-                  <div className="p-4">
-                    <h3 className="text-lg font-semibold text-gray-900 mb-1">{entry.title}</h3>
-                    <p className="text-gray-700 text-sm mb-1 line-clamp-2">{entry.description || '説明なし'}</p>
-                    <p className="text-gray-500 text-xs">発見日時: {new Date(entry.takenAt).toLocaleString()}</p>
-                    <p className="text-gray-500 text-xs">公開設定: {entry.privacyLevel === 'PUBLIC' ? '公開' : entry.privacyLevel === 'FRIENDS_ONLY' ? 'フレンドのみ' : '非公開'}</p>
+              <Link href={`/entries/${entry.id}`} key={entry.id} className={styles.card}>
+                {entry.imageUrl && (
+                  <div className={styles.imageContainer}>
+                    <Image src={entry.imageUrl} alt={entry.title} layout="fill" className={styles.image} />
                   </div>
-                </Link>
-                <div className="p-4 border-t flex space-x-2 bg-gray-50 rounded-b-lg">
-                  <Link href={`/entries/edit/${entry.id}`} className="px-3 py-1 bg-indigo-600 text-white rounded-md text-sm hover:bg-indigo-700">
-                    編集
-                  </Link>
-                  <button
-                    onClick={() => handleDelete(entry.id)}
-                    className="px-3 py-1 bg-red-600 text-white rounded-md text-sm hover:bg-red-700"
-                  >
-                    削除
-                  </button>
+                )}
+                <div className={styles.content}>
+                  <h3 className={styles.cardTitle}>{entry.title}</h3>
+                  <p className={styles.cardDate}>発見日時: {new Date(entry.takenAt).toLocaleString()}</p>
+                  <p className={styles.cardDescription}>{entry.description || ''}</p>
                 </div>
-              </div>
+                <div className={styles.cardFooter}>
+                    <span className={styles.privacy}>{getPrivacyLabel(entry.privacyLevel)}</span>
+                    <div className={styles.actions}>
+                        <Link href={`/entries/edit/${entry.id}`} className={`${styles.actionButton} ${styles.editButton}`} onClick={(e) => e.stopPropagation()}>編集</Link>
+                        <button onClick={(e) => handleDelete(entry.id, e)} className={`${styles.actionButton} ${styles.deleteButton}`}>削除</button>
+                    </div>
+                </div>
+              </Link>
             ))}
           </div>
         )}
-      </div>
     </div>
   );
 }

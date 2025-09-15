@@ -1,0 +1,151 @@
+/* 全体のコンテナ：方眼紙の背景 */
+.container {
+    width: 100%;
+    min-height: 100vh;
+    background-color: #f0f0f0;
+    background-image:
+        linear-gradient(to right, rgba(180, 180, 180, 0.5) 1px, transparent 1px),
+        linear-gradient(to bottom, rgba(180, 180, 180, 0.5) 1px, transparent 1px);
+    background-size: 20px 20px;
+    padding: 2rem;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+/* ノートブック本体 */
+.notebook {
+    background-color: #fffde7; /* クリーム色 */
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    box-shadow: 5px 5px 15px rgba(0,0,0,0.15);
+    width: 100%;
+    max-width: 700px;
+    position: relative;
+    padding-left: 40px; /* スパイラル部分のスペース */
+}
+
+/* スパイラルリングの装飾 */
+.spiral {
+    position: absolute;
+    top: 0;
+    left: 15px;
+    bottom: 0;
+    width: 10px;
+    background-image: radial-gradient(#ccc 3px, transparent 4px);
+    background-size: 10px 20px;
+    background-position: 0 10px;
+}
+
+/* フォームコンテンツエリア */
+.formContent {
+    padding: 2rem;
+}
+
+.title {
+    font-size: 1.75rem; /* 28px */
+    font-weight: 600;
+    margin-bottom: 2rem;
+    text-align: center;
+    color: #333;
+}
+
+.form {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+}
+
+.formGroup {
+    display: flex;
+    flex-direction: column;
+}
+
+.label {
+    font-size: 0.875rem; /* 14px */
+    font-weight: 500;
+    color: #555;
+    margin-bottom: 0.5rem;
+}
+
+/* フォーム内のテキスト色を統一 */
+.form label, .form select, .form input[type="datetime-local"], .form input[type="file"] {
+    color: #333;
+}
+
+/* 罫線付きの入力欄 */
+.ruledInput, .ruledTextarea {
+    color: #333;
+    border: none; /* 枠線をなくし、二重下線を防ぐ */
+    background-color: transparent;
+    padding: 0.5rem;
+    font-size: 1rem;
+    line-height: 2;
+    /* マーカー用の背景(1)と、罫線用の背景(2)を両方指定 */
+    background-image: linear-gradient(to right, rgba(255, 229, 100, 0.5), rgba(255, 229, 100, 0.5)),
+                      linear-gradient(to bottom, transparent 30px, #e0e0e0 31px);
+    background-repeat: no-repeat, repeat-y;
+    background-position: left center, left 0.5rem;
+    background-size: 0% 1.5em, 100% 32px; /* マーカーは一行分の高さ */
+    transition: background-size 0.4s ease-in-out;
+}
+
+.ruledInput:focus, .ruledTextarea:focus {
+    outline: none;
+    /* フォーカス時にマーカー用の背景サイズを100%にする */
+    background-size: 100% 1.5em, 100% 32px;
+}
+
+.ruledTextarea {
+    resize: vertical;
+}
+
+.mapContainer {
+    height: 300px;
+    width: 100%;
+    border-radius: 6px;
+    overflow: hidden;
+    border: 1px solid #ddd;
+}
+
+.submitButton {
+    padding: 0.75rem 1.5rem;
+    border: none;
+    border-radius: 6px;
+    background-color: #a1887f; /* 茶色 */
+    color: white;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background-color 0.2s;
+    align-self: center;
+    margin-top: 1rem;
+}
+
+.submitButton:hover {
+    background-color: #8d776f;
+}
+
+.cancelLink {
+    text-align: center;
+    margin-top: 1rem;
+    font-size: 0.875rem;
+    color: #a1887f;
+}
+
+.error, .success {
+    text-align: center;
+    margin-bottom: 1rem;
+    padding: 0.75rem;
+    border-radius: 6px;
+}
+
+.error {
+    background-color: #fde8e8;
+    color: #9b2c2c;
+}
+
+.success {
+    background-color: #e8f5e9;
+    color: #2e7d32;
+}
