@@ -1,0 +1,193 @@
+/* 全体のコンテナ：方眼紙の背景 */
+.container {
+    width: 100%;
+    min-height: 100vh;
+    background-color: #f0f0f0;
+    background-image:
+        linear-gradient(to right, rgba(180, 180, 180, 0.5) 1px, transparent 1px),
+        linear-gradient(to bottom, rgba(180, 180, 180, 0.5) 1px, transparent 1px);
+    background-size: 20px 20px;
+    padding: 2rem;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+/* ノートブック本体 */
+.notebook {
+    background-color: #fffde7; /* クリーム色 */
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    box-shadow: 5px 5px 15px rgba(0,0,0,0.15);
+    width: 100%;
+    max-width: 800px; /* 詳細ページは少し広めに */
+    position: relative;
+    padding-left: 40px; /* スパイラル部分のスペース */
+    display: flex;
+    flex-direction: column;
+}
+
+/* スパイラルリングの装飾 */
+.spiral {
+    position: absolute;
+    top: 0;
+    left: 15px;
+    bottom: 0;
+    width: 10px;
+    background-image: radial-gradient(#ccc 3px, transparent 4px);
+    background-size: 10px 20px;
+    background-position: 0 10px;
+}
+
+/* コンテンツエリア */
+.contentArea {
+    padding: 2rem;
+    flex-grow: 1;
+    overflow-y: auto;
+}
+
+.title {
+    font-size: 2rem; /* 32px */
+    font-weight: 700;
+    margin-bottom: 1rem;
+    color: #333;
+}
+
+.metaInfo {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+    padding-bottom: 1rem;
+    border-bottom: 1px dashed #ccc;
+}
+
+.userInfo {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    text-decoration: none;
+    color: inherit;
+}
+
+.userIcon {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    object-fit: cover;
+    background-color: #eee;
+}
+
+.username {
+    font-weight: 600;
+    color: #555;
+}
+
+.datePrivacy {
+    font-size: 0.875rem;
+    color: #777;
+}
+
+.imageContainer {
+    width: 100%;
+    height: auto; /* 画像の高さに合わせて自動調整 */
+    position: relative;
+    margin-bottom: 1.5rem;
+    border-radius: 6px;
+    overflow: hidden;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+.image {
+    width: 100%;
+    object-fit: contain;
+}
+
+.description {
+    font-size: 1rem;
+    line-height: 1.8;
+    color: #444;
+    margin-bottom: 1.5rem;
+    white-space: pre-wrap; /* 改行を保持 */
+}
+
+.mapContainer {
+    height: 300px;
+    width: 100%;
+    border-radius: 6px;
+    overflow: hidden;
+    border: 1px solid #ddd;
+    margin-bottom: 1.5rem;
+}
+
+.commentsSection {
+    margin-top: 2rem;
+    padding-top: 1.5rem;
+    border-top: 1px dashed #ccc;
+}
+
+.actionButtons {
+    display: flex;
+    justify-content: flex-end;
+    gap: 1rem;
+    padding: 1rem 2rem;
+    border-top: 1px dashed #ccc;
+    background-color: #fefefe;
+    border-bottom-left-radius: 8px;
+    border-bottom-right-radius: 8px;
+}
+
+.actionButton {
+    padding: 0.5rem 1rem;
+    border-radius: 6px;
+    font-weight: 500;
+    text-decoration: none;
+    cursor: pointer;
+    transition: background-color 0.2s;
+    color: white;
+}
+
+.editButton {
+    background-color: #a1887f; /* 茶色 */
+}
+.editButton:hover {
+    background-color: #8d776f;
+}
+
+.deleteButton {
+    background-color: #e57373; /* ソフトな赤 */
+}
+.deleteButton:hover {
+    background-color: #ef5350;
+}
+
+.backButton {
+    background-color: #78909c; /* グレー */
+}
+.backButton:hover {
+    background-color: #6b818c;
+}
+
+/* --- レスポンシブ対応 --- */
+@media (max-width: 768px) {
+    .actionButtons {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 0.5rem;
+    }
+
+    .actionButton {
+        width: 100%;
+        text-align: center;
+    }
+}
+
+/* ローディング・エラー表示 */
+.loadingErrorContainer {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.2rem;
+    color: #555;
+}

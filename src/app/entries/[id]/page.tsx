@@ -1,13 +1,20 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { useParams } from 'next/navigation';
+import { useState, useEffect, useCallback } from 'react';
+import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
-import CommentSection from '@/components/CommentSection'; // Import the new component
+import dynamic from 'next/dynamic';
+import CommentSection from '@/components/CommentSection';
+import styles from './page.module.css';
 
-// This type should ideally be shared
-interface DiaryEntry {
+const DetailMap = dynamic(() => import('@/components/DetailMap'), { 
+  ssr: false, 
+  loading: () => <p>地図を読み込み中...</p> 
+});
+
+// APIから返される生のデータ構造
+interface RawDiaryEntry {
   id: string;
   title: string;
   description: string | null;
@@ -23,6 +30,15 @@ interface DiaryEntry {
     username: string;
     iconUrl: string | null;
   };
+  likes: { userId: string }[]; // 生のlikesデータ
+  _count: { comments: number }; // 生のcomments countデータ
+}
+
+// UIで使うための加工済みデータ構造
+interface DiaryEntry extends Omit<RawDiaryEntry, 'likes' | '_count'> {
+  isLikedByCurrentUser: boolean;
+  likesCount: number;
+  commentsCount: number;
 }
 
 interface CurrentUser {
@@ -32,6 +48,7 @@ interface CurrentUser {
 export default function EntryDetailPage() {
   const params = useParams();
   const { id } = params;
+  const router = useRouter();
 
   const [entry, setEntry] = useState<DiaryEntry | null>(null);
   const [loading, setLoading] = useState(true);
@@ -55,28 +72,37 @@ export default function EntryDetailPage() {
   }, []);
 
   // Fetch diary entry
-  useEffect(() => {
-    if (id) {
-      const fetchEntry = async () => {
-        setLoading(true);
-        setError('');
-        try {
-          const response = await fetch(`/api/entries/${id}`);
-          if (!response.ok) {
-            const data = await response.json();
-            throw new Error(data.message || '日記の取得に失敗しました');
-          }
-          const data = await response.json();
-          setEntry(data.entry);
-        } catch (err) {
-          setError(err instanceof Error ? err.message : '不明なエラーが発生しました');
-        } finally {
-          setLoading(false);
-        }
+  const fetchEntry = useCallback(async () => {
+    if (!id) return;
+    setLoading(true);
+    setError('');
+    try {
+      const response = await fetch(`/api/entries/${id}`);
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.message || '日記の取得に失敗しました');
+      }
+      const rawData: { entry: RawDiaryEntry } = await response.json();
+      
+      // データを加工してUI用Stateにセット
+      const processedEntry: DiaryEntry = {
+        ...rawData.entry,
+        likesCount: rawData.entry.likes ? rawData.entry.likes.length : 0,
+        commentsCount: rawData.entry._count ? rawData.entry._count.comments : 0,
+        isLikedByCurrentUser: currentUser ? (rawData.entry.likes ? rawData.entry.likes.some(like => like.userId === currentUser.id) : false) : false,
       };
-      fetchEntry();
+      setEntry(processedEntry);
+
+    } catch (err) {
+      setError(err instanceof Error ? err.message : '不明なエラーが発生しました');
+    } finally {
+      setLoading(false);
     }
-  }, [id]);
+  }, [id, currentUser]); // currentUserを依存配列に追加
+
+  useEffect(() => {
+    fetchEntry();
+  }, [fetchEntry]);
 
   const getPrivacyLevelText = (level: DiaryEntry['privacyLevel']) => {
     switch (level) {
@@ -88,74 +114,141 @@ export default function EntryDetailPage() {
     }
   };
 
+  const onLikeToggle = useCallback(async () => {
+    if (!currentUser) {
+      alert('「いいね」するにはログインが必要です。');
+      router.push('/auth/login');
+      return;
+    }
+    if (!entry) return;
+
+    const originalIsLiked = entry.isLikedByCurrentUser;
+    const originalLikesCount = entry.likesCount;
+
+    // Optimistic update
+    setEntry(prev => prev ? {
+      ...prev,
+      isLikedByCurrentUser: !originalIsLiked,
+      likesCount: originalIsLiked ? originalLikesCount - 1 : originalLikesCount + 1
+    } : null);
+
+    try {
+      const response = await fetch('/api/likes', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ diaryEntryId: entry.id }),
+      });
+      if (!response.ok) {
+        // Revert if API call fails
+        setEntry(prev => prev ? {
+          ...prev,
+          isLikedByCurrentUser: originalIsLiked,
+          likesCount: originalLikesCount
+        } : null);
+        const data = await response.json();
+        alert(data.message || '「いいね」に失敗しました。');
+      }
+    } catch (error) {
+      setEntry(prev => prev ? {
+        ...prev,
+        isLikedByCurrentUser: originalIsLiked,
+        likesCount: originalLikesCount
+      } : null);
+      alert('「いいね」中にエラーが発生しました。');
+      console.error('Like toggle error:', error);
+    }
+  }, [currentUser, entry, router]);
+
+  const handleDelete = useCallback(async () => {
+    if (window.confirm('本当にこの日記を削除しますか？')) {
+      try {
+        const response = await fetch(`/api/entries/${id}`, { method: 'DELETE' });
+        if (response.ok) {
+          alert('日記が正常に削除されました。');
+          router.push('/entries/my'); // Redirect to my entries page
+        } else {
+          const data = await response.json();
+          alert(data.message || '日記の削除に失敗しました。');
+        }
+      } catch (err) {
+        console.error('Delete entry error:', err);
+        alert('日記の削除中にエラーが発生しました。');
+      }
+    }
+  }, [id, router]);
+
   if (loading) {
-    return <div className="min-h-screen flex items-center justify-center">読み込み中...</div>;
+    return <div className={styles.loadingErrorContainer}>読み込み中...</div>;
   }
 
   if (error) {
-    return <div className="min-h-screen flex items-center justify-center text-red-500">エラー: {error}</div>;
+    return <div className={styles.loadingErrorContainer}>エラー: {error}</div>;
   }
 
   if (!entry) {
-    return <div className="min-h-screen flex items-center justify-center">日記が見つかりません。</div>;
+    return <div className={styles.loadingErrorContainer}>日記が見つかりません。</div>;
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-       <header className="bg-white shadow-sm">
-        <div className="max-w-4xl mx-auto py-4 px-4 sm:px-6 lg:px-8 flex justify-between items-center">
-          <h1 className="text-2xl font-bold text-gray-900">日記の詳細</h1>
-          <div className="flex space-x-4">
-            <Link href="/albums" className="text-blue-600 hover:underline">
-              アルバムに戻る
+    <div className={styles.container}>
+      <div className={styles.notebook}>
+        <div className={styles.spiral}></div>
+        <div className={styles.contentArea}>
+          <h1 className={styles.title}>{entry.title}</h1>
+
+          <div className={styles.metaInfo}>
+            <Link href={`/entries/user/${entry.user.id}`} className={styles.userInfo}>
+              <Image 
+                  src={entry.user.iconUrl || '/default-avatar.svg'}
+                  alt={entry.user.username} 
+                  width={40} 
+                  height={40} 
+                  className={styles.userIcon}
+              />
+              <span className={styles.username}>{entry.user.username}</span>
             </Link>
-            <Link href="/" className="text-blue-600 hover:underline">
-              マップに戻る
-            </Link>
+            <div className={styles.datePrivacy}>
+              <p>発見日時: {new Date(entry.takenAt).toLocaleString()}</p>
+              <p>投稿日時: {new Date(entry.createdAt).toLocaleString()}</p>
+              <p>公開範囲: {getPrivacyLevelText(entry.privacyLevel)}</p>
+            </div>
           </div>
+
+          {entry.imageUrl && (
+            <div className={styles.imageContainer}>
+              <Image src={entry.imageUrl} alt={entry.title} width={800} height={600} className={styles.image} />
+            </div>
+          )}
+
+          <div className={styles.description}>
+            <p>{entry.description || '説明はありません。'}</p>
+          </div>
+
+          <div className={styles.mapContainer}>
+            <DetailMap latitude={entry.latitude} longitude={entry.longitude} />
+          </div>
+
+          <CommentSection 
+            entryId={entry.id} 
+            currentUserId={currentUser?.id || null} 
+            entryAuthorId={entry.userId} 
+            onCommentPosted={fetchEntry} // コメント投稿後に日記データを再取得
+          />
         </div>
-      </header>
-      <main className="max-w-4xl mx-auto py-6 sm:px-6 lg:px-8">
-        <div className="bg-white p-8 rounded-lg shadow-md">
-            <h2 className="text-3xl font-bold mb-4 text-gray-900">{entry.title}</h2>
-            
-            <div className="flex items-center space-x-4 mb-4 border-b pb-4">
-                <Link href={`/entries/user/${entry.user.id}`} className="flex items-center space-x-2 hover:opacity-80 transition-opacity">
-                    <Image 
-                        src={entry.user.iconUrl || '/default-avatar.svg'}
-                        alt={entry.user.username} 
-                        width={40} 
-                        height={40} 
-                        className="rounded-full object-cover bg-gray-200"
-                    />
-                    <span className="font-semibold text-gray-800">{entry.user.username}</span>
-                </Link>
-            </div>
 
-            {entry.imageUrl && (
-                <div className="my-4">
-                    <Image src={entry.imageUrl} alt={entry.title} width={800} height={600} className="w-full h-auto object-contain rounded-md" />
-                </div>
-            )}
-
-            <div className="prose max-w-none text-gray-800">
-                <p>{entry.description || '説明はありません。'}</p>
-            </div>
-
-            <div className="mt-6 pt-4 border-t text-sm text-gray-500 space-y-2">
-                <p><strong>発見日時:</strong> {new Date(entry.takenAt).toLocaleString()}</p>
-                <p><strong>投稿日時:</strong> {new Date(entry.createdAt).toLocaleString()}</p>
-                <p><strong>公開範囲:</strong> {getPrivacyLevelText(entry.privacyLevel)}</p>
-            </div>
-
-            {/* --- Comment Section --- */}
-            <CommentSection 
-              entryId={entry.id} 
-              currentUserId={currentUser?.id || null} 
-              entryAuthorId={entry.userId} 
-            />
+        <div className={styles.actionButtons}>
+          <Link href="/" className={`${styles.actionButton} ${styles.backButton}`}>マップに戻る</Link>
+          {currentUser && currentUser.id === entry.userId && (
+            <>
+              <Link href={`/entries/edit/${entry.id}`} className={`${styles.actionButton} ${styles.editButton}`}>編集</Link>
+              <button onClick={handleDelete} className={`${styles.actionButton} ${styles.deleteButton}`}>削除</button>
+            </>
+          )}
+          <button onClick={onLikeToggle} className={`${styles.actionButton} ${entry.isLikedByCurrentUser ? styles.editButton : styles.backButton}`}>
+            {entry.isLikedByCurrentUser ? `いいね済み (${entry.likesCount ?? 0})` : `いいね (${entry.likesCount ?? 0})`}
+          </button>
         </div>
-      </main>
+      </div>
     </div>
   );
 }
