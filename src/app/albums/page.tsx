@@ -40,6 +40,10 @@ export default function AlbumsPage() {
   const [isCreatingAlbum, setIsCreatingAlbum] = useState(false);
   const [newAlbumName, setNewAlbumName] = useState('');
 
+  // State for inline editing album name
+  const [editingAlbumId, setEditingAlbumId] = useState<string | null>(null);
+  const [editingName, setEditingName] = useState('');
+
   // Fetch all bookmark albums on component mount
   useEffect(() => {
     const fetchAlbums = async () => {
@@ -125,9 +129,61 @@ export default function AlbumsPage() {
     }
   };
 
-  // Placeholder for other album management functions
-  const handleRenameAlbum = (albumId: string) => { alert('今後実装します'); };
-  const handleDeleteAlbum = (albumId: string) => { alert('今後実装します'); };
+  const handleStartEditing = (album: BookmarkAlbum) => {
+    setEditingAlbumId(album.id);
+    setEditingName(album.name);
+  };
+
+  const handleNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setEditingName(e.target.value);
+  };
+
+  const handleUpdateName = async (albumId: string) => {
+    const currentAlbum = albums.find(a => a.id === albumId);
+    if (!editingName || editingName.trim() === '' || editingName === currentAlbum?.name) {
+      setEditingAlbumId(null); // キャンセル
+      return;
+    }
+
+    setError('');
+    try {
+      const response = await fetch(`/api/bookmark-albums/${albumId}`,
+        {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name: editingName.trim() })
+        }
+      );
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.error || '名称の変更に失敗しました');
+      }
+      const updatedAlbum = data.updatedAlbum;
+      setAlbums(prev => prev.map(a => a.id === albumId ? { ...a, name: updatedAlbum.name } : a));
+      setSelectedAlbum(prev => prev && prev.id === albumId ? { ...prev, name: updatedAlbum.name } : prev);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : '不明なエラーが発生しました');
+    } finally {
+      setEditingAlbumId(null); // 編集モードを終了
+    }
+  };
+
+  const handleDeleteAlbum = async (albumId: string) => {
+    if (window.confirm('このアルバムを削除しますか？アルバム内のすべてのブックマークも削除されます。')) {
+      setError('');
+      try {
+        const response = await fetch(`/api/bookmark-albums/${albumId}`, { method: 'DELETE' });
+        if (!response.ok) {
+          const data = await response.json();
+          throw new Error(data.error || 'アルバムの削除に失敗しました');
+        }
+        setAlbums(prev => prev.filter(a => a.id !== albumId));
+        setSelectedAlbum(null);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : '不明なエラーが発生しました');
+      }
+    }
+  };
 
   return (
     <div className={styles.container}>
@@ -162,25 +218,23 @@ export default function AlbumsPage() {
       </div>
 
       {/* アルバム一覧とブックマーク一覧のコンテナ */}
-      <div className="flex space-x-8">
+      <div className="flex flex-col md:flex-row md:space-x-8">
         {/* Albums List (Left Pane) */}
-        <div className="w-1/4">
+        <div className="w-full md:w-1/4 mb-8 md:mb-0">
           <h2 className="text-lg font-semibold mb-3 text-gray-800">アルバム一覧</h2>
           {loadingAlbums ? (
             <p className="text-gray-600">読み込み中...</p>
           ) : (
-            <div className={styles.albumGrid}> {/* ulからdivに変更 */} 
+            <div className={styles.albumGrid}> 
               {albums.map(album => (
-                <div key={album.id} className={styles.bookCard} onClick={() => handleSelectAlbum(album)}> {/* Linkからdivに変更 */} 
-                  <div className={styles.bookCoverFront}>
-                    {album.representativeImageUrl ? (
-                      <Image src={album.representativeImageUrl} alt={album.name} width={140} height={180} className={styles.bookImage} />
-                    ) : (
-                      <Image src="/default-album-cover.svg" alt="デフォルトアルバムカバー" width={140} height={180} className={styles.bookImage} />
-                    )}
-                    <h2 className={styles.bookTitle}>{album.name}</h2>
-                    <p className={styles.bookCount}>{album._count ? album._count.bookmarks : 0} 冊</p>
-                  </div>
+                <div key={album.id} className={styles.bookCard} onClick={() => handleSelectAlbum(album)}>
+                  {album.representativeImageUrl ? (
+                    <Image src={album.representativeImageUrl} alt={album.name} layout="fill" objectFit="cover" className={styles.bookImage} />
+                  ) : (
+                    null
+                  )}
+                  <h2 className={styles.bookTitle}>{album.name}</h2>
+                  <p className={styles.bookCountBottomRight}>{album._count ? album._count.bookmarks : 0} 枚</p>
                   {/* 背表紙 */}
                   <div className={styles.bookSpine}></div>
                 </div>
@@ -190,15 +244,29 @@ export default function AlbumsPage() {
         </div>
 
         {/* Bookmarks in Selected Album (Right Pane) */}
-        <div className="w-3/4">
+        <div className="w-full md:w-3/4">
           {selectedAlbum ? (
             <div>
-              <div className="flex justify-between items-center mb-3">
-                  <h2 className="text-lg font-semibold text-gray-800">{selectedAlbum.name} の中身</h2>
-                  <div className="flex space-x-2">
-                      <button onClick={() => handleRenameAlbum(selectedAlbum.id)} className="text-sm text-blue-600 hover:underline">名称変更</button>
-                      <button onClick={() => handleDeleteAlbum(selectedAlbum.id)} className="text-sm text-red-600 hover:underline">削除</button>
-                  </div>
+              <div className={styles.bookmarksHeader}>
+                {
+                  editingAlbumId === selectedAlbum.id ? (
+                    <input
+                      type="text"
+                      value={editingName}
+                      onChange={handleNameChange}
+                      onBlur={() => handleUpdateName(selectedAlbum.id)}
+                      onKeyDown={(e) => e.key === 'Enter' && handleUpdateName(selectedAlbum.id)}
+                      className={styles.inlineInput}
+                      autoFocus
+                    />
+                  ) : (
+                    <h2 className={styles.bookmarksTitle}>{selectedAlbum.name} の中身</h2>
+                  )
+                }
+                <div className={styles.bookmarksActions}>
+                    <button onClick={() => handleStartEditing(selectedAlbum)} className={styles.tapeButton}>名称変更</button>
+                    <button onClick={() => handleDeleteAlbum(selectedAlbum.id)} className={`${styles.tapeButton} ${styles.tapeButtonDelete}`}>削除</button>
+                </div>
               </div>
               {loadingBookmarks ? (
                 <p className="text-gray-600">読み込み中...</p>

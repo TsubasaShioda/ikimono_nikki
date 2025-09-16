@@ -93,7 +93,7 @@
     box-shadow: 10px 10px 20px rgba(0,0,0,0.2);
     cursor: pointer;
     border-radius: 4px;
-    background-color: #E6D5B8; /* ベージュに変更 */
+    background-color: #a1887f; /* 濃いブラウンに変更 */
     overflow: hidden; /* コンテンツがはみ出さないように */
 }
 
@@ -128,6 +128,16 @@
     text-align: center;
     color: #333;
     width: 90%; /* 親要素の幅に合わせる */
+    z-index: 2; /* 画像より手前に */
+    background-color: rgba(255, 255, 255, 0.7);
+    padding: 0.2rem 0;
+    border-radius: 4px;
+}
+
+/* カードの背景画像 */
+.bookImage {
+    border-radius: 4px;
+    z-index: 1;
 }
 
 /* ブックマーク数 */
@@ -166,13 +176,52 @@
     color: #333;
 }
 
-.bookmarksActions button {
-    background: none;
+.bookmarksActions {
+    display: flex;
+    gap: 1rem;
+}
+
+/* マスキングテープ風ボタン */
+.tapeButton {
+    background-color: #fefc93; /* テープの色 */
     border: none;
-    color: #a1887f;
+    padding: 8px 12px;
+    font-family: 'Yuji Syuku', serif; /* 手書き風フォント */
+    font-size: 14px;
+    color: #333; /* 文字色を指定 */
     cursor: pointer;
-    font-size: 0.9rem;
-    text-decoration: underline;
+    box-shadow: 2px 2px 5px rgba(0,0,0,0.2);
+    transition: all 0.2s ease;
+}
+
+.tapeButton:hover {
+    transform: scale(1.05);
+    box-shadow: 3px 3px 7px rgba(0,0,0,0.3);
+}
+
+.tapeButtonDelete {
+    background-color: #ffbaba; /* 赤系のテープ */
+}
+
+.tapeButtonDelete:hover {
+    transform: scale(1.05);
+}
+
+/* インライン編集用入力欄 */
+.inlineInput {
+    font-size: 1.5rem;
+    font-weight: 600;
+    color: #333;
+    border: none;
+    border-bottom: 2px dashed #a1887f;
+    background-color: rgba(255,255,255,0.8);
+    text-align: center;
+    width: 100%;
+}
+
+.inlineInput:focus {
+    outline: none;
+    border-bottom-color: #CDB891;
 }
 
 .bookmarksGrid {

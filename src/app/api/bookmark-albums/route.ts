@@ -29,6 +29,11 @@ export async function GET(req: NextRequest) {
 
     const bookmarkAlbums = await prisma.bookmarkAlbum.findMany({
       where: { userId },
+      include: {
+        _count: {
+          select: { bookmarks: true },
+        },
+      },
       orderBy: { createdAt: 'desc' },
     });
 
