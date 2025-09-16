@@ -3,11 +3,15 @@
 import { useState, useEffect, FormEvent } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
+import styles from './page.module.css';
 
 // Types should ideally be shared from a central types file
 interface BookmarkAlbum {
   id: string;
   name: string;
+  _count: { bookmarks: number }; // ブックマーク数を追加
+  // 代表画像URLを追加 (APIが返すことを想定)
+  representativeImageUrl?: string | null;
 }
 
 interface DiaryEntry {
@@ -21,7 +25,7 @@ interface DiaryEntry {
 
 interface Bookmark {
   id: string;
-  diaryEntry: DiaryEntry;
+  diaryEntry: DiaryEntry | null; // diaryEntryがnullの可能性を考慮
 }
 
 export default function AlbumsPage() {
@@ -95,7 +99,8 @@ export default function AlbumsPage() {
       if (!response.ok) {
         throw new Error(data.error || 'アルバムの作成に失敗しました');
       }
-      setAlbums(prev => [data.bookmarkAlbum, ...prev]);
+      // 新しく作成されたアルバムに_countとrepresentativeImageUrlを追加 (APIが返すことを想定)
+      setAlbums(prev => [{ ...data.bookmarkAlbum, _count: { bookmarks: 0 }, representativeImageUrl: null }, ...prev]);
       setNewAlbumName('');
       setIsCreatingAlbum(false);
     } catch (err) {
@@ -125,106 +130,110 @@ export default function AlbumsPage() {
   const handleDeleteAlbum = (albumId: string) => { alert('今後実装します'); };
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <header className="bg-white shadow-sm">
-        <div className="max-w-7xl mx-auto py-4 px-4 sm:px-6 lg:px-8 flex justify-between items-center">
-          <h1 className="text-2xl font-bold text-gray-900">アルバム</h1>
-          <Link href="/" className="text-blue-600 hover:underline">
-            マップに戻る
-          </Link>
-        </div>
+    <div className={styles.container}>
+      <header className={styles.header}>
+        <h1 className={styles.title}>アルバム一覧</h1>
       </header>
-      <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
-        {error && <p className="text-red-500 bg-red-100 p-3 rounded-md mb-4">{error}</p>}
-        <div className="flex space-x-8">
-          {/* Albums List */}
-          <div className="w-1/4">
-            <h2 className="text-lg font-semibold mb-3 text-gray-800">アルバム一覧</h2>
-            {loadingAlbums ? (
-              <p className="text-gray-600">読み込み中...</p>
-            ) : (
-              <ul className="space-y-2">
-                {albums.map(album => (
-                  <li key={album.id}>
-                    <button 
-                      onClick={() => handleSelectAlbum(album)}
-                      className={`w-full text-left px-3 py-2 rounded-md ${selectedAlbum?.id === album.id ? 'bg-blue-100 text-blue-700' : 'text-gray-800 hover:bg-gray-100'}`}>
-                      {album.name}
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            )}
-            <div className="mt-4">
-              {isCreatingAlbum ? (
-                <form onSubmit={handleCreateAlbum} className="space-y-2">
-                  <input 
-                    type="text"
-                    value={newAlbumName}
-                    onChange={(e) => setNewAlbumName(e.target.value)}
-                    placeholder="新しいアルバム名"
-                    className="w-full p-2 border border-gray-300 rounded-md placeholder-gray-500 text-gray-900"
-                    autoFocus
-                  />
-                  <div className="flex space-x-2">
-                    <button type="submit" className="w-full px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700">作成</button>
-                    <button type="button" onClick={() => setIsCreatingAlbum(false)} className="w-full px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">キャンセル</button>
+
+      {error && <p className="text-red-500 bg-red-100 p-3 rounded-md mb-4">{error}</p>}
+
+      {/* アルバム作成フォーム */}
+      <div className={styles.createAlbumForm}>
+        {isCreatingAlbum ? (
+          <form onSubmit={handleCreateAlbum}>
+            <input 
+              type="text"
+              value={newAlbumName}
+              onChange={(e) => setNewAlbumName(e.target.value)}
+              placeholder="新しいアルバム名"
+              className={styles.createAlbumInput}
+              autoFocus
+            />
+            <div className={styles.createAlbumButtons}>
+              <button type="submit" className={`${styles.createAlbumButton} ${styles.createAlbumButtonPrimary}`}>作成</button>
+              <button type="button" onClick={() => setIsCreatingAlbum(false)} className={`${styles.createAlbumButton} ${styles.createAlbumButtonSecondary}`}>キャンセル</button>
+            </div>
+          </form>
+        ) : (
+          <button onClick={() => setIsCreatingAlbum(true)} className={`${styles.createAlbumButton} ${styles.createAlbumButtonPrimary}`}>
+            + 新しいアルバム
+          </button>
+        )}
+      </div>
+
+      {/* アルバム一覧とブックマーク一覧のコンテナ */}
+      <div className="flex space-x-8">
+        {/* Albums List (Left Pane) */}
+        <div className="w-1/4">
+          <h2 className="text-lg font-semibold mb-3 text-gray-800">アルバム一覧</h2>
+          {loadingAlbums ? (
+            <p className="text-gray-600">読み込み中...</p>
+          ) : (
+            <div className={styles.albumGrid}> {/* ulからdivに変更 */} 
+              {albums.map(album => (
+                <div key={album.id} className={styles.bookCard} onClick={() => handleSelectAlbum(album)}> {/* Linkからdivに変更 */} 
+                  <div className={styles.bookCoverFront}>
+                    {album.representativeImageUrl ? (
+                      <Image src={album.representativeImageUrl} alt={album.name} width={140} height={180} className={styles.bookImage} />
+                    ) : (
+                      <Image src="/default-album-cover.svg" alt="デフォルトアルバムカバー" width={140} height={180} className={styles.bookImage} />
+                    )}
+                    <h2 className={styles.bookTitle}>{album.name}</h2>
+                    <p className={styles.bookCount}>{album._count ? album._count.bookmarks : 0} 冊</p>
                   </div>
-                </form>
+                  {/* 背表紙 */}
+                  <div className={styles.bookSpine}></div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Bookmarks in Selected Album (Right Pane) */}
+        <div className="w-3/4">
+          {selectedAlbum ? (
+            <div>
+              <div className="flex justify-between items-center mb-3">
+                  <h2 className="text-lg font-semibold text-gray-800">{selectedAlbum.name} の中身</h2>
+                  <div className="flex space-x-2">
+                      <button onClick={() => handleRenameAlbum(selectedAlbum.id)} className="text-sm text-blue-600 hover:underline">名称変更</button>
+                      <button onClick={() => handleDeleteAlbum(selectedAlbum.id)} className="text-sm text-red-600 hover:underline">削除</button>
+                  </div>
+              </div>
+              {loadingBookmarks ? (
+                <p className="text-gray-600">読み込み中...</p>
               ) : (
-                <button onClick={() => setIsCreatingAlbum(true)} className="w-full px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700">
-                  + 新しいアルバム
-                </button>
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+                  {bookmarks.length > 0 ? bookmarks.map(bookmark => (
+                    <div key={bookmark.id} className="bg-white rounded-lg shadow overflow-hidden group relative">
+                      <Link href={`/entries/${bookmark.diaryEntry?.id}`} className="block hover:bg-gray-50">
+                          {bookmark.diaryEntry?.imageUrl && (
+                              <Image src={bookmark.diaryEntry.imageUrl} alt={bookmark.diaryEntry.title || ''} width={140} height={180} className="w-full h-40 object-cover" />
+                          )}
+                          <div className="p-4">
+                              <h3 className="font-bold text-gray-900">{bookmark.diaryEntry?.title || 'タイトルなし'}</h3>
+                              <p className="text-sm text-gray-500">by {bookmark.diaryEntry?.user?.username || '不明'}</p>
+                          </div>
+                      </Link>
+                      <button onClick={() => handleRemoveBookmark(bookmark.id)} className="absolute top-2 right-2 p-1 bg-white bg-opacity-75 rounded-full text-gray-600 hover:bg-red-500 hover:text-white opacity-0 group-hover:opacity-100 transition-opacity">
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                              <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+                          </svg>
+                      </button>
+                    </div>
+                  )) : (
+                    <p className="text-gray-600">このアルバムにはまだブックマークがありません。</p>
+                  )}
+                </div>
               )}
             </div>
-          </div>
-
-          {/* Bookmarks in Selected Album */}
-          <div className="w-3/4">
-            {selectedAlbum ? (
-              <div>
-                <div className="flex justify-between items-center mb-3">
-                    <h2 className="text-lg font-semibold text-gray-800">{selectedAlbum.name} の中身</h2>
-                    <div className="flex space-x-2">
-                        <button onClick={() => handleRenameAlbum(selectedAlbum.id)} className="text-sm text-blue-600 hover:underline">名称変更</button>
-                        <button onClick={() => handleDeleteAlbum(selectedAlbum.id)} className="text-sm text-red-600 hover:underline">削除</button>
-                    </div>
-                </div>
-                {loadingBookmarks ? (
-                  <p className="text-gray-600">読み込み中...</p>
-                ) : (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-                    {bookmarks.length > 0 ? bookmarks.map(bookmark => (
-                      <div key={bookmark.id} className="bg-white rounded-lg shadow overflow-hidden group relative">
-                        <Link href={`/entries/${bookmark.diaryEntry.id}`} className="block hover:bg-gray-50">
-                            {bookmark.diaryEntry.imageUrl && (
-                                <Image src={bookmark.diaryEntry.imageUrl} alt={bookmark.diaryEntry.title} width={300} height={200} className="w-full h-40 object-cover" />
-                            )}
-                            <div className="p-4">
-                                <h3 className="font-bold text-gray-900">{bookmark.diaryEntry.title}</h3>
-                                <p className="text-sm text-gray-500">by {bookmark.diaryEntry.user.username}</p>
-                            </div>
-                        </Link>
-                        <button onClick={() => handleRemoveBookmark(bookmark.id)} className="absolute top-2 right-2 p-1 bg-white bg-opacity-75 rounded-full text-gray-600 hover:bg-red-500 hover:text-white opacity-0 group-hover:opacity-100 transition-opacity">
-                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                                <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
-                            </svg>
-                        </button>
-                      </div>
-                    )) : (
-                      <p className="text-gray-600">このアルバムにはまだブックマークがありません。</p>
-                    )}
-                  </div>
-                )}
-              </div>
-            ) : (
-              <div className="flex justify-center items-center h-full bg-gray-100 rounded-md">
-                <p className="text-gray-500">アルバムを選択してください</p>
-              </div>
-            )}
-          </div>
+          ) : (
+            <div className="flex justify-center items-center h-full bg-gray-100 rounded-md">
+              <p className="text-gray-500">アルバムを選択してください</p>
+            </div>
+          )}
         </div>
-      </main>
+      </div>
     </div>
   );
 }
