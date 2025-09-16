@@ -1,4 +1,5 @@
 'use client';
+import styles from './MapComponent.module.css';
 
 import { useEffect, useMemo, useCallback, useState, useRef } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, useMap, useMapEvents } from 'react-leaflet';
@@ -265,12 +266,12 @@ export default function MapComponent({ center, zoom, flyToCoords, entries, curre
 
                 {currentUserId === entry.userId && (
                   <div className="mt-3 flex space-x-2 border-t pt-3">
-                    <Link href={`/entries/edit/${entry.id}`} className="px-3 py-1 bg-indigo-600 text-white rounded-md text-sm hover:bg-indigo-700">
+                    <Link href={`/entries/edit/${entry.id}`} className={styles.tapeButton}>
                       編集
                     </Link>
                     <button
                       onClick={() => onDelete(entry.id)}
-                      className="px-3 py-1 bg-red-600 text-white rounded-md text-sm hover:bg-red-700"
+                      className={`${styles.tapeButton} ${styles.tapeButtonDelete}`}
                     >
                       削除
                     </button>

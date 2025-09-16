@@ -1,0 +1,22 @@
+/* マスキングテープ風ボタン */
+.tapeButton {
+    display: inline-block; /* Linkタグにも適用するため */
+    text-decoration: none; /* Linkタグの下線を消す */
+    background-color: #fefc93 !important; /* テープの色 */
+    border: none;
+    padding: 8px 12px;
+    font-size: 14px;
+    color: #333 !important; /* 文字色を指定 */
+    cursor: pointer;
+    box-shadow: 2px 2px 5px rgba(0,0,0,0.2);
+    transition: all 0.2s ease;
+}
+
+.tapeButton:hover {
+    transform: scale(1.05);
+    box-shadow: 3px 3px 7px rgba(0,0,0,0.3);
+}
+
+.tapeButtonDelete {
+    background-color: #ffbaba !important; /* 赤系のテープ */
+}

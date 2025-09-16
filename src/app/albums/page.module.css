@@ -186,7 +186,6 @@
     background-color: #fefc93; /* テープの色 */
     border: none;
     padding: 8px 12px;
-    font-family: 'Yuji Syuku', serif; /* 手書き風フォント */
     font-size: 14px;
     color: #333; /* 文字色を指定 */
     cursor: pointer;
