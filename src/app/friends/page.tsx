@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { debounce } from 'lodash';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
+import styles from './Friends.module.css';
 
 // --- TYPE DEFINITIONS ---
 interface UserProfile {
@@ -258,21 +259,25 @@ export default function FriendsPage() {
 
   // --- RENDER HELPER for list items ---
   const renderUserItem = (user: UserProfile, actionButton: React.ReactNode) => (
-    <div key={user.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-md">
-      <div className="flex items-center cursor-pointer" onClick={() => handleViewProfile(user.id)}>
+    <div key={user.id} className={styles.userCard}>
+      <div className="flex items-center cursor-pointer flex-grow" onClick={() => handleViewProfile(user.id)}> {/* flex-grow を追加 */}
         <div className="w-10 h-10 rounded-full overflow-hidden bg-gray-200 flex items-center justify-center">
           {user.iconUrl ? <Image src={user.iconUrl} alt="" width={40} height={40} className="w-full h-full object-cover" /> : <svg className="w-8 h-8 text-gray-500" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd"></path></svg>}
         </div>
-        <span className="ml-4 font-medium text-gray-800">{user.username}</span>
+        <span className="ml-4 font-medium text-gray-800 break-all"> {/* break-all を追加 */}
+          {user.username}
+        </span>
       </div>
-      {actionButton}
+      <div className="flex-shrink-0 ml-4"> {/* ml-4 を追加し、flex-shrink-0 で縮小を優先 */}
+        {actionButton}
+      </div>
     </div>
   );
 
   // --- RENDER ---
   return (
-    <div className="min-h-screen bg-gray-100 p-4 sm:p-6 lg:p-8">
-      <div className="max-w-4xl mx-auto bg-white p-6 rounded-lg shadow-md">
+    <div className={styles.container}>
+      <div className={styles.postItContainer}>
         <header className="mb-6">
           <h1 className="text-3xl font-bold text-gray-900">フレンド管理</h1>
           <p className="text-gray-600 mt-1">フレンドの管理、申請の確認、ユーザーの検索ができます。</p>
@@ -281,10 +286,10 @@ export default function FriendsPage() {
 
         {/* Tab Navigation */}
         <div className="border-b border-gray-200 mb-6">
-          <nav className="-mb-px flex space-x-6" aria-label="Tabs">
-            <button onClick={() => setActiveTab('friends')} className={`${activeTab === 'friends' ? 'border-indigo-500 text-indigo-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'} whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm`}>フレンド</button>
-            <button onClick={() => setActiveTab('requests')} className={`${activeTab === 'requests' ? 'border-indigo-500 text-indigo-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'} whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm`}>受信した申請 <span className="ml-1.5 rounded-full bg-indigo-100 text-indigo-600 px-2 py-0.5 text-xs">{friendRequests.length}</span></button>
-            <button onClick={() => setActiveTab('hidden')} className={`${activeTab === 'hidden' ? 'border-indigo-500 text-indigo-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'} whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm`}>非表示ユーザー</button>
+          <nav className="-mb-px flex space-x-4 overflow-x-auto" aria-label="Tabs">
+            <button onClick={() => setActiveTab('friends')} className={`${styles.tabButton} ${activeTab === 'friends' ? styles.activeTab : ''}`}>フレンド</button>
+            <button onClick={() => setActiveTab('requests')} className={`${styles.tabButton} ${activeTab === 'requests' ? styles.activeTab : ''}`}>申請 <span className="ml-1.5 rounded-full bg-indigo-100 text-indigo-600 px-2 py-0.5 text-xs">{friendRequests.length}</span></button>
+            <button onClick={() => setActiveTab('hidden')} className={`${styles.tabButton} ${activeTab === 'hidden' ? styles.activeTab : ''}`}>非表示</button>
           </nav>
         </div>
 
@@ -295,19 +300,19 @@ export default function FriendsPage() {
               <h2 className="text-2xl font-semibold text-gray-800 mb-4">あなたのフレンド</h2>
               {loadingFriends ? <p className="text-gray-500">読み込み中...</p> : friends.length > 0 ? (
                 <div className="space-y-3">
-                  {friends.map((friend) => renderUserItem(friend, <button onClick={() => handleRemoveFriend(friend.friendshipId)} className="px-3 py-1.5 bg-gray-500 text-white text-sm font-semibold rounded-md hover:bg-gray-600">フレンド解除</button>))}
+                  {friends.map((friend) => renderUserItem(friend, <button onClick={() => handleRemoveFriend(friend.friendshipId)} className={styles.tapeButton}>フレンド解除</button>))}
                 </div>
               ) : <p className="text-gray-500 italic">まだフレンドはいません。</p>}
               
               <h2 className="text-2xl font-semibold text-gray-800 mt-10 mb-4">ユーザーを探す</h2>
               <div className="relative">
-                <input type="search" placeholder="ユーザー名で検索..." className="w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 text-gray-900" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
+                <input type="search" placeholder="ユーザー名で検索..." className={styles.inlineInput} value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
               </div>
               {searchError && <p className="text-red-500 mt-2">{searchError}</p>}
               <div className="mt-4 space-y-3">
                 {loadingSearch ? <p className="text-gray-500">検索中...</p> : searchResults.map((user) => {
                   const buttonState = getButtonState(user.id);
-                  return renderUserItem(user, <button onClick={() => handleSendRequest(user.id)} disabled={buttonState.disabled} className={`px-4 py-1.5 text-white text-sm font-semibold rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 ${buttonState.className}`}>{buttonState.text}</button>);
+                  return renderUserItem(user, <button onClick={() => handleSendRequest(user.id)} disabled={buttonState.disabled} className={`${styles.tapeButton} ${buttonState.className}`}>{buttonState.text}</button>);
                 })}
               </div>
             </section>
@@ -320,8 +325,8 @@ export default function FriendsPage() {
                 <div className="space-y-3">
                   {friendRequests.map((req) => renderUserItem(req.requester, 
                     <div className="flex space-x-2">
-                      <button onClick={() => handleRespondToRequest(req.id, 'ACCEPTED')} className="px-3 py-1.5 bg-green-600 text-white text-sm font-semibold rounded-md hover:bg-green-700">承認</button>
-                      <button onClick={() => handleRespondToRequest(req.id, 'DECLINED')} className="px-3 py-1.5 bg-red-600 text-white text-sm font-semibold rounded-md hover:bg-red-700">拒否</button>
+                      <button onClick={() => handleRespondToRequest(req.id, 'ACCEPTED')} className={styles.tapeButton}>承認</button>
+                      <button onClick={() => handleRespondToRequest(req.id, 'DECLINED')} className={`${styles.tapeButton} ${styles.tapeButtonDelete}`}>拒否</button>
                     </div>
                   ))}
                 </div>
@@ -334,7 +339,7 @@ export default function FriendsPage() {
               <h2 className="text-2xl font-semibold text-gray-800 mb-4">非表示中のユーザー</h2>
               {loadingHiddenUsers ? <p className="text-gray-500">読み込み中...</p> : hiddenUsers.length > 0 ? (
                 <div className="space-y-3">
-                  {hiddenUsers.map((user) => renderUserItem(user, <button onClick={() => handleUnhideUser(user.id)} className="px-3 py-1.5 bg-blue-600 text-white text-sm font-semibold rounded-md hover:bg-blue-700">非表示解除</button>))}
+                  {hiddenUsers.map((user) => renderUserItem(user, <button onClick={() => handleUnhideUser(user.id)} className={styles.tapeButton}>非表示解除</button>))}
                 </div>
               ) : <p className="text-gray-500 italic">非表示中のユーザーはいません。</p>}
             </section>
