@@ -22,7 +22,7 @@ function MapViewUpdater({ center, zoom, flyToCoords }: { center: [number, number
         map.setView(center, zoom);
       }
     }
-  }, [center, zoom, flyToCoords, map]);
+  }, [center, zoom, flyToCoords]);
 
   return null;
 }

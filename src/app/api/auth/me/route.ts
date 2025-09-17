@@ -26,30 +26,30 @@ async function getUserIdFromToken(request: NextRequest): Promise<string | null> 
 }
 
 export async function GET(request: NextRequest) {
-  const token = request.cookies.get('auth_token')?.value;
-  const jwtSecret = process.env.JWT_SECRET;
-
-  if (!token || !jwtSecret) {
-    return NextResponse.json({ message: '認証が必要です' }, { status: 401 });
-  }
-
   try {
-    const { payload } = await jwtVerify(token, new TextEncoder().encode(jwtSecret));
-    const userId = payload.userId as string;
+    const userId = await getUserIdFromToken(request);
+
+    if (!userId) {
+      // ユーザーが認証されていない場合は、エラーではなくnullを返す
+      return NextResponse.json({ user: null }, { status: 200 });
+    }
 
     const user = await prisma.user.findUnique({
       where: { id: userId },
-      select: { id: true, username: true, email: true, description: true, iconUrl: true }, // descriptionとiconUrlを追加
+      select: { id: true, username: true, email: true, description: true, iconUrl: true },
     });
 
     if (!user) {
-      return NextResponse.json({ message: 'ユーザーが見つかりません' }, { status: 404 });
+      // このケースは、トークンは有効だがDBにユーザーがいない場合に発生する可能性がある
+      return NextResponse.json({ user: null }, { status: 200 });
     }
 
     return NextResponse.json({ user }, { status: 200 });
   } catch (error) {
+    // 予期せぬエラーが発生した場合
     console.error('Failed to fetch user info:', error);
-    return NextResponse.json({ message: 'ユーザー情報の取得中にエラーが発生しました' }, { status: 500 });
+    // この場合もクライアント側でのエラー処理を簡潔にするため、user: null を返す
+    return NextResponse.json({ user: null, message: 'ユーザー情報の取得中にエラーが発生しました' }, { status: 500 });
   }
 }
 

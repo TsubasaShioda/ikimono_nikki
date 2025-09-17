@@ -147,10 +147,12 @@ export default function SettingsPage() {
             <input
               type="text"
               id="username"
+              name="username"
               className={styles.inlineInput}
               value={username}
               onChange={(e) => setUsername(e.target.value)}
               required
+              autocomplete="username"
             />
           </div>
           <div>
@@ -158,10 +160,12 @@ export default function SettingsPage() {
             <input
               type="email"
               id="email"
+              name="email"
               className={styles.inlineInput}
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
+              autocomplete="email"
             />
           </div>
           <div>
@@ -169,20 +173,24 @@ export default function SettingsPage() {
             <input
               type="password"
               id="password"
+              name="password"
               className={styles.inlineInput}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder="パスワードを変更しない場合は空欄"
+              autocomplete="new-password"
             />
           </div>
           <div>
             <label htmlFor="description" className="block text-sm font-medium text-gray-700">プロフィール説明</label>
             <textarea
               id="description"
+              name="description"
               rows={3}
               className={styles.inlineInput}
               value={description}
               onChange={(e) => setDescription(e.target.value)}
+              autocomplete="off"
             ></textarea>
           </div>
           <div>
@@ -191,7 +199,9 @@ export default function SettingsPage() {
               type="file"
               id="icon"
               accept="image/*"
-              className="mt-1 block w-full text-sm text-gray-900 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100"
+              name="icon"
+              autocomplete="off"
+              className="mt-1 block w-full text-sm text-gray-900"
               onChange={(e) => setIconFile(e.target.files ? e.target.files[0] : null)}
             />
             {iconUrl && !iconFile && (

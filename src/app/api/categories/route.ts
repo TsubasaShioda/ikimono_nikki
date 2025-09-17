@@ -20,14 +20,7 @@ async function getUserIdFromToken(request: NextRequest): Promise<string | null> 
 
 export async function GET(request: NextRequest) {
   try {
-    // Authentication is optional for fetching categories, but good practice for API access
-    const userId = await getUserIdFromToken(request);
-    if (!userId) {
-      // If categories are meant to be public, remove this check
-      // For now, we'll keep it simple and assume authenticated access
-      return NextResponse.json({ message: '認証が必要です' }, { status: 401 });
-    }
-
+    // カテゴリは公開情報のため認証は不要
     let categories = await prisma.category.findMany({
       orderBy: { name: 'asc' },
     });
