@@ -1,0 +1,68 @@
+/* ページ全体のコンテナ：方眼紙の背景 */
+.container {
+    min-height: 100vh;
+    background-color: #f0f0f0;
+    background-image:
+        linear-gradient(to right, rgba(180, 180, 180, 0.5) 1px, transparent 1px),
+        linear-gradient(to bottom, rgba(180, 180, 180, 0.5) 1px, transparent 1px);
+    background-size: 20px 20px;
+    padding: 2rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* メインの付箋風コンテナ */
+.postItContainer {
+    background-color: #fffde7; /* 付箋の色 */
+    padding: 2rem;
+    border-radius: 8px;
+    box-shadow: 5px 5px 15px rgba(0,0,0,0.15);
+    width: 100%;
+    max-width: 40rem; /* max-w-md (448px) よりも少し広めに */
+}
+
+/* 下線のみの入力欄 */
+.inlineInput {
+    font-size: 1rem;
+    font-weight: 500;
+    color: #333;
+    border: none;
+    border-bottom: 2px dashed #a1887f;
+    background-color: transparent;
+    text-align: left;
+    width: 100%;
+    padding: 0.5rem 0;
+}
+
+.inlineInput:focus {
+    outline: none;
+    border-bottom-color: #CDB891;
+}
+
+/* マスキングテープ風ボタン */
+.tapeButton {
+    background-color: #fefc93; /* テープの色 */
+    border: none;
+    padding: 8px 12px;
+    font-size: 14px;
+    color: #333; /* 文字色を指定 */
+    cursor: pointer;
+    box-shadow: 2px 2px 5px rgba(0,0,0,0.2);
+    transition: all 0.2s ease;
+}
+
+.tapeButton:hover {
+    transform: scale(1.05);
+    box-shadow: 3px 3px 7px rgba(0,0,0,0.3);
+}
+
+.tapeButtonDelete {
+    background-color: #ffbaba; /* 赤系のテープ */
+    color: #333; /* 文字色を指定 */
+    font-size: 12px; /* 文字を小さく */
+}
+
+.tapeButtonDelete:hover {
+    transform: scale(1.05);
+}

@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
 import { debounce } from 'lodash';
+import styles from './Settings.module.css';
 
 const DRAFT_KEY = 'autosave-settings-profile';
 
@@ -135,8 +136,8 @@ export default function SettingsPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-100 p-4">
-      <div className="bg-white p-8 rounded-lg shadow-md w-full max-w-md">
+    <div className={styles.container}>
+      <div className={styles.postItContainer}>
         <h2 className="text-2xl font-bold mb-6 text-center text-gray-900">プロフィール編集</h2>
         {error && <p className="text-red-500 text-center mb-4">{error}</p>}
         {success && <p className="text-green-500 text-center mb-4">{success}</p>}
@@ -146,7 +147,7 @@ export default function SettingsPage() {
             <input
               type="text"
               id="username"
-              className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm text-gray-900"
+              className={styles.inlineInput}
               value={username}
               onChange={(e) => setUsername(e.target.value)}
               required
@@ -157,7 +158,7 @@ export default function SettingsPage() {
             <input
               type="email"
               id="email"
-              className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm text-gray-900"
+              className={styles.inlineInput}
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
@@ -168,7 +169,7 @@ export default function SettingsPage() {
             <input
               type="password"
               id="password"
-              className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm text-gray-900"
+              className={styles.inlineInput}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder="パスワードを変更しない場合は空欄"
@@ -179,7 +180,7 @@ export default function SettingsPage() {
             <textarea
               id="description"
               rows={3}
-              className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm text-gray-900"
+              className={styles.inlineInput}
               value={description}
               onChange={(e) => setDescription(e.target.value)}
             ></textarea>
@@ -200,7 +201,7 @@ export default function SettingsPage() {
                 <button
                   type="button"
                   onClick={() => setIconUrl(null)}
-                  className="mt-1 text-red-600 hover:text-red-700 text-sm"
+                  className={styles.tapeButtonDelete}
                 >
                   アイコンを削除
                 </button>
@@ -210,7 +211,7 @@ export default function SettingsPage() {
           <div>
             <button
               type="submit"
-              className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500" 
+              className={styles.tapeButton}
             >
               プロフィールを更新
             </button>
