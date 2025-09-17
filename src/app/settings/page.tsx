@@ -152,7 +152,7 @@ export default function SettingsPage() {
               value={username}
               onChange={(e) => setUsername(e.target.value)}
               required
-              autocomplete="username"
+              autoComplete="username"
             />
           </div>
           <div>
@@ -165,7 +165,7 @@ export default function SettingsPage() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
-              autocomplete="email"
+              autoComplete="email"
             />
           </div>
           <div>
@@ -178,7 +178,7 @@ export default function SettingsPage() {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder="パスワードを変更しない場合は空欄"
-              autocomplete="new-password"
+              autoComplete="new-password"
             />
           </div>
           <div>
@@ -190,7 +190,7 @@ export default function SettingsPage() {
               className={styles.inlineInput}
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              autocomplete="off"
+              autoComplete="off"
             ></textarea>
           </div>
           <div>
@@ -200,7 +200,7 @@ export default function SettingsPage() {
               id="icon"
               accept="image/*"
               name="icon"
-              autocomplete="off"
+              autoComplete="off"
               className="mt-1 block w-full text-sm text-gray-900"
               onChange={(e) => setIconFile(e.target.files ? e.target.files[0] : null)}
             />

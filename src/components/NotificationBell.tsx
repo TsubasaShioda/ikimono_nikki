@@ -83,8 +83,14 @@ export default function NotificationBell() {
     setIsOpen(prev => !prev);
     if (!isOpen && unreadCount > 0) {
       try {
-        await fetch('/api/notifications/mark-as-read', { method: 'POST' });
-        setUnreadCount(0);
+        const res = await fetch('/api/notifications', { method: 'POST' });
+        if (res.ok) {
+          setUnreadCount(0);
+          // Optimistically update all notifications to be read
+          setNotifications(prev => prev.map(n => ({ ...n, isRead: true })));
+        } else {
+          throw new Error('Failed to mark notifications as read');
+        }
       } catch (err) {
         console.error('Failed to mark notifications as read', err);
       }
@@ -101,7 +107,7 @@ export default function NotificationBell() {
       </button>
 
       {isOpen && (
-        <div className="absolute right-0 mt-2 w-80 max-h-96 overflow-y-auto bg-white rounded-md shadow-lg z-20 ring-1 ring-black ring-opacity-5">
+        <div className="fixed top-20 right-4 w-80 max-h-96 overflow-y-auto bg-white rounded-md shadow-lg z-20 ring-1 ring-black ring-opacity-5">
           <div className="p-2 font-bold text-gray-900 border-b">通知</div>
           {error && <div className="p-4 text-red-500">{error}</div>}
           {notifications.length > 0 ? (

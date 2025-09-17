@@ -56,6 +56,21 @@ export default function NewEntryPage() {
           setLongitude(coords[1].toString());
         },
         () => {
+          // 現在地取得失敗時にsessionStorageから前回の位置情報を試す
+          try {
+            const savedView = sessionStorage.getItem('mapViewState');
+            if (savedView) {
+              const { lat, lng } = JSON.parse(savedView);
+              const lastKnownCoords: [number, number] = [lat, lng];
+              setUserLocation(lastKnownCoords);
+              setLatitude(lastKnownCoords[0].toString());
+              setLongitude(lastKnownCoords[1].toString());
+              return; // 読み込み成功
+            }
+          } catch (e) {
+            console.error('Failed to restore map view from sessionStorage', e);
+          }
+          // sessionStorageにも情報がない場合の最終フォールバック
           const defaultCoords: [number, number] = [35.6895, 139.6917];
           setUserLocation(defaultCoords);
           setLatitude(defaultCoords[0].toString());
@@ -156,13 +171,22 @@ export default function NewEntryPage() {
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className={styles.formGroup}>
-                <label htmlFor="image" className={styles.label}>画像</label>
-                <input
-                  type="file"
-                  id="image"
-                  accept="image/*"
-                  onChange={(e) => setImageFile(e.target.files ? e.target.files[0] : null)}
-                />
+                <label className={styles.label}>画像</label>
+                <div className="flex items-center gap-4">
+                  <label htmlFor="image" className="shrink-0 cursor-pointer rounded-md border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50">
+                    ファイルを選択
+                  </label>
+                  <input
+                    type="file"
+                    id="image"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={(e) => setImageFile(e.target.files ? e.target.files[0] : null)}
+                  />
+                  <span className="min-w-0 truncate text-sm text-gray-500">
+                    {imageFile ? imageFile.name : '選択されていません'}
+                  </span>
+                </div>
               </div>
               <div className={styles.formGroup}>
                 <label htmlFor="category" className={styles.label}>カテゴリ</label>
