@@ -1,0 +1,42 @@
+12:07:14.890 Running build in Washington, D.C., USA (East) – iad1
+12:07:14.890 Build machine configuration: 2 cores, 8 GB
+12:07:14.940 Cloning github.com/TsubasaShioda/ikimono_nikki (Branch: main, Commit: a3fe582)
+12:07:15.549 Cloning completed: 609.000ms
+12:07:16.430 Restored build cache from previous deployment (GcrbEbebHsDwcmfs3QynTNq8D9rH)
+12:07:16.938 Running "vercel build"
+12:07:17.312 Vercel CLI 48.0.2
+12:07:17.621 Installing dependencies...
+12:07:18.888 
+12:07:18.889 removed 14 packages in 1s
+12:07:18.889 
+12:07:18.890 156 packages are looking for funding
+12:07:18.890   run `npm fund` for details
+12:07:18.915 Detected Next.js version: 14.2.25
+12:07:18.919 Running "npm run build"
+12:07:19.023 
+12:07:19.024 > ikimono-nikki@0.1.0 build
+12:07:19.024 > next build
+12:07:19.024 
+12:07:19.670   ▲ Next.js 14.2.25
+12:07:19.670 
+12:07:19.745    Creating an optimized production build ...
+12:07:25.333 Failed to compile.
+12:07:25.333 
+12:07:25.333 ./src/app/auth/login/page.tsx
+12:07:25.334 Module not found: Can't resolve './login.module.css'
+12:07:25.335 
+12:07:25.335 https://nextjs.org/docs/messages/module-not-found
+12:07:25.335 
+12:07:25.338 ./src/app/auth/register/page.tsx
+12:07:25.338 Module not found: Can't resolve '../login/login.module.css'
+12:07:25.338 
+12:07:25.338 https://nextjs.org/docs/messages/module-not-found
+12:07:25.339 
+12:07:25.339 ./src/app/api/bookmark-albums/[id]/route.ts
+12:07:25.339 Module not found: Can't resolve '@/lib/auth'
+12:07:25.339 
+12:07:25.339 https://nextjs.org/docs/messages/module-not-found
+12:07:25.340 
+12:07:25.395 
+12:07:25.396 > Build failed because of webpack errors
+12:07:25.430 Error: Command "npm run build" exited with 1

@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import styles from '../login/login.module.css';
+import styles from '../login/Login.module.css';
 
 export default function RegisterPage() {
   const [username, setUsername] = useState('');
