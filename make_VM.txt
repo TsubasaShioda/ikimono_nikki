@@ -1,0 +1,291 @@
+学科サーバー上でVMを作成
+VMを使用することで、ハードを用意することなくサーバーを立てることができます。 以下より、学科サーバー上でVMを作成する方法を説明します。
+
+VMを作成する
+VMの作成にはie-virshコマンドを使用します。
+
+ie-virshコマンドとは
+ie-virshコマンドは学科サーバー(amaneなど)でVMを作成することができるコマンドです。virshコマンドをラップしたもので、使い方はそれとほぼ同じです。
+
+ie-virsh	virsh
+ie-virsh define	virsh define
+ie-virsh start	virsh start
+ie-virsh shutdown	virsh shutdown
+OSを決める
+まずはVMで使用するOSを決めましょう。
+
+$ie-virsh templates
+
+で、使用できるOSの一覧が表示されます。
+
+$ie-virsh templates
+uid: 20665 gid: 1001 name: e185742
+CentOS-7
+CentOS-8
+Debian-10
+Debian-8
+Fedora33-Debug
+Fedore-25
+Ubuntu-16
+Ubuntu-18
+Ubuntu-20
+今回はUbuntu-20を使用してみたいと思います。
+
+VMを定義する
+$ie-virsh define <vm-name> -t <template-name>
+
+で定義、作成することができます。
+
+Ubuntu-20のVMをhogevmという名前で作成したければ、
+
+$ie-virsh define -b hogevm -t Ubuntu-20
+
+といった具合です。
+
+作成時に初期userとパスワードが出力されるのでメモしておきましょう。 もし忘れた場合は再度VMを作り直すか、シス管にご連絡ください。 また、VMのパスワードはデフォルトのパスワードから必ず変えましょう。
+
+ie-virsh define -b hogehoge -t Ubuntu-20
+uid: 21796 gid: 1001 name: e195755
+e195755-hogehoge
+generate xml :xxxxxxxx
+vnc password : xxxxxxxx
+Formatting 'e195755-hogehoge.qcow2', fmt=qcow2 cluster_size=65536 extended_l2=off compression_type=zlib size=10737418240 backing_file=xxxxxxxxx backing_fmt=qcow2 lazy_refcounts=off refcount_bits=16
+initial user is xxxxxxxx
+initial password is xxxxxxxxxxxx
+Domain 'e195755-hogehoge' defined from xxxxxxx
+define 時の option
+bios から uefi を使うように変更したので、biosを使いたい時には -b を使ってください。
+
+既存の define には影響しませんが、define しなおすと影響が出ます。
+
+% ie-virsh define --help
+ie-virsh-define 
+define (but don't start) a domain from an template XML file
+
+USAGE:
+    ie-virsh define [FLAGS] [OPTIONS] <name>
+
+ARGS:
+    <name>    
+
+FLAGS:
+    -b, --bios       use BIOS as firmware instead of UEFI
+    -g, --gdb        define the domain in which the gdb port is opened from the template XML file
+    -h, --help       Prints help information
+    -V, --version    Prints version information
+
+OPTIONS:
+    -t, --template <template>    create a VM with a differential from the template VM registered in
+                                 $ie-virsh templates
+作成されているか確認する
+自分が作成したVMの一覧を表示するには、
+
+$ie-virsh list
+
+で、出来ます。以下は表示の例です。
+
+$ie-virsh list
+uid: 20665 gid: 1001 name: e185742
+ Id    Name                            State
+-------------------------------------------------
+ 83    e185742-fedora-debug-matac42    running
+ 117   e185742-test                    running
+ 118   e185742-hoge                    running
+ 129   e185742-node02                  running
+ 130   e185742-node01                  running
+ 131   e185742-node03                  running
+ -     e185742(matac42vm.st)           shut off
+ -     e185742(oppj.st)                shut off
+ -     e185742-fedora-debug-matac      shut off
+ -     e185742-hogevm                  shut off
+作成したVMがリストにあればOKです。VM名は<ID>+VM名で表示されます。
+
+例ではe185742-hogevmが一番下にあるので、hogevmが作成されていることがわかります。
+
+VMにIPアドレスを振る
+作成したVMにsshでアクセスできるように、IPアドレスをVMに割り振りましょう。
+
+MACアドレスの確認
+IPアドレスをVMに割り振るにはMACアドレスを確認する必要があります。
+
+MACアドレスを確認するには、
+
+$ie-virsh domiflist <vm-name>
+
+で、出来ます。以下はその例です。
+
+$ie-virsh domiflist hogevm
+uid: 20665 gid: 1001 name: e185742
+ Interface   Type     Source   Model    MAC
+-----------------------------------------------------------
+ -           bridge   br62     virtio   52:54:00:d6:27:88
+例ではhogevmのMACアドレスが、52:54:00:d6:27:88であることがわかりました。
+
+IPアドレスを取得する
+IPアドレス取得の方法は、IPアドレス申請方法を御覧ください。
+
+VMにアクセスする
+VMを起動する
+まずは作成したVMを起動しましょう。
+
+VMを起動するには、
+
+$ie-virsh start <vmname>
+
+で、出来ます。以下は起動例です。
+
+$ie-virsh start hogevm
+uid: 20665 gid: 1001 name: e185742
+Domain e185742-hogevm started
+起動しているかを確認しましょう。
+
+$ie-virsh list
+uid: 20665 gid: 1001 name: e185742
+ Id    Name                            State
+-------------------------------------------------
+ 83    e185742-fedora-debug-matac42    running
+ 117   e185742-test                    running
+ 118   e185742-hoge                    running
+ 129   e185742-node02                  running
+ 130   e185742-node01                  running
+ 131   e185742-node03                  running
+ 149   e185742-hogevm                  running   <--runningになっていれば起動している。
+ -     e185742(matac42vm.st)           shut off
+ -     e185742(oppj.st)                shut off
+ -     e185742-fedora-debug-matac      shut off
+ssh接続する
+sshを使用して作成したVMにアクセスします。
+
+VM作成時の初期ユーザーはie-userです。パスワードは ie-virsh define時に表示されます。 もし忘れた場合は再度VMを作り直すか、シス管にご連絡ください。 また、VMのパスワードはデフォルトのパスワードから必ず変えましょう。
+
+次のコマンドでVMにsshします。
+
+$ssh ie-user@<VMのIPアドレス>
+
+すると、本当にアクセスしてよいか聞かれるので、yesと入力してEnter。
+
+Are you sure you want to continue connecting (yes/no/[fingerprint])? yes
+パスワードを入力してEnter。
+
+ie-user@10.0.3.10's password:
+以下のようにプロンプトが表示されれば接続成功です。
+
+Welcome to Ubuntu 20.04.1 LTS (GNU/Linux 5.4.0-42-generic x86_64)
+
+ * Documentation:  https://help.ubuntu.com
+ * Management:     https://landscape.canonical.com
+ * Support:        https://ubuntu.com/advantage
+
+
+0 updates can be installed immediately.
+0 of these updates are security updates.
+
+
+The list of available updates is more than a week old.
+To check for new updates run: sudo apt update
+Last login: Wed Aug 26 16:27:14 2020 from 10.100.10.50
+ie-user@ubuntu:~$
+作成後は
+パスワード変更
+rootログインの禁止設定
+ユーザー作成
+等を行うと良いでしょう。
+
+もしグローバルIPを取得したい場合はこちらの記事を参考に作業を進めてください。
+
+また、VMを使用しない時は、
+
+$ie-virsh shutdown <vmname>
+
+で電源を落としておきましょう。
+
+VMスペック
+デフォルトのスペックは以下のとおりです。
+
+CPU	メモリ	ディスク
+1コア	1GB	8GB
+VMのスペックを上げたい
+VMのスペックを上げるを御覧ください。
+
+メディアの接続
+iso image を接続して install などを行うことが可能です
+
+ie-virsh start した後に接続します
+
+uefi menu を出した段階で別なコマンドでで
+
+  ie-virsh attach-disk 03 /home/open/Fedora/Fedora-Server-dvd-x86_64-36_Beta-1.4.iso
+とします。外したい時には、
+
+  ie-virsh change-media 03 -- --eject
+とします。(sdd 固定なので、不都合があるかもしれない)
+
+ie-virsh undefine の対処法
+$ie-virsh undefine <vmname>
+
+をするとvmを削除することができます。
+
+もし謝って削除してしまっても元に戻すことができます。
+
++amane+e235718 ie-virsh list
+uid: 19042 gid: 1001 name: e235718
+ Id    Name                            State
+-------------------------------------------------
+ -     e235718-03                      shut off
+ -     e235718-lamp                    shut off
+ -     e235718-test                    shut off
+
++amane+e235718 ie-virsh undefine lamp
+uid: 19042 gid: 1001 name: e235718
+Domain 'e235718-lamp' has been undefined
+
++amane+e235718 ie-virsh list
+uid: 19042 gid: 1001 name: e235718
+ Id    Name                            State
+-------------------------------------------------
+ -     e235718-03                      shut off
+ -     e235718-test                    shut off
+このように ie-virsh listを実行した際にvmが表示されなくなっています。
+
+もう一度defineします。
+
++amane+e235718 ie-virsh define lamp
+uid: 19042 gid: 1001 name: e235718
+generate xml : /etc/libvirt/qemu/e23/e235718/e235718-lamp.xml
+vnc password : xxxxxxx
+Domain 'e235718-lamp' defined from /etc/libvirt/qemu/e23/e235718/e235718-lamp.xml
+
++amane+e235718 ie-virsh dumpxml lamp | grep 'source file'
+      <source file='/mnt/ie-virsh/e23/e235718/e235718-lamp.qcow2' index='2'/>
+ここにあるsource fileがあるか確認します。
+
++amane+e235718 ls /mnt/ie-virsh/e23/e235718/e235718-lamp.qcow2
+/mnt/ie-virsh/e23/e235718/e235718-lamp.qcow2
+source fileがあるので、vmはundefine前の状態で使用することができます。
+
+vmのNICは再生成されており、MACアドレスが変わっているので、IPアドレスを再取得してください。
+
+IPアドレス取得の方法は、IPアドレス申請方法を御覧ください。
+
++amane+e235718 ie-virsh domiflist lamp
+uid: 19042 gid: 1001 name: e235718
+ Interface   Type     Source   Model    MAC
+-----------------------------------------------------------
+ vnet374     bridge   br62     virtio   52:54:00:58:da:3b
+IPアドレスが再取得できたら、sshログインが可能となります。
+
+undefine前
+
++amane+e235718 ssh e235718@10.0.6.177
+Web console: https://fedora37:9090/ or https://10.0.6.177:9090/
+
+Last login: Sat Nov  2 09:28:45 2024 from 10.100.0.10
+[e235718@fedora37 ~]$ 
+undefine後
+
++amane+e235718 ssh e235718@10.0.6.183                         
+Web console: https://fedora37:9090/ or https://10.0.6.183:9090/
+
+Last login: Sat Nov  2 12:49:33 2024 from 10.100.0.10
+[e235718@fedora37 ~]$ 
+Updated on 11 Apr 2021
