@@ -100,33 +100,60 @@ export async function PUT(request: NextRequest) {
       updateData.description = description;
     }
 
+    const bucketName = 'user-icons'; // アイコン用のバケット名 (例: 'user-icons')
+
+    const { createClient } = require('@supabase/supabase-js');
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+    if (!supabaseUrl || !supabaseAnonKey) {
+      throw new Error('Supabase URL or Anon Key is not defined');
+    }
+
+    const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+      auth: { persistSession: false },
+    });
+
     let iconUrl: string | null = existingUser.iconUrl; // 既存のiconUrlを保持
     if (icon) {
-      // Delete old icon if it exists
-      if (existingUser.iconUrl) {
-        const oldIconPath = path.join(process.cwd(), 'public', existingUser.iconUrl);
-        try {
-          await fs.unlink(oldIconPath);
-        } catch (unlinkError) {
-          console.error('Failed to delete old icon:', unlinkError);
-          // Continue even if old icon deletion fails
+
+
+      // Delete old icon from Supabase Storage if it exists
+      if (existingUser.iconUrl && existingUser.iconUrl.startsWith(`/storage/v1/object/public/${bucketName}/`)) {
+        const oldFilename = existingUser.iconUrl.split('/').pop(); // URLからファイル名を取得
+        if (oldFilename) {
+          const { error: deleteError } = await supabase.storage.from(bucketName).remove([oldFilename]);
+          if (deleteError) {
+            console.error('Failed to delete old icon from Supabase Storage:', deleteError);
+          }
         }
       }
 
-      // Upload new icon
-      const buffer = Buffer.from(await icon.arrayBuffer());
+      // Upload new icon to Supabase Storage
       const filename = `${Date.now()}-icon-${icon.name}`;
-      const uploadDir = path.join(process.cwd(), 'public', 'uploads'); // uploadsディレクトリを使用
-      const filePath = path.join(uploadDir, filename);
-      await fs.writeFile(filePath, buffer);
-      iconUrl = `/uploads/${filename}`;
+      const { data, error: uploadError } = await supabase.storage
+        .from(bucketName)
+        .upload(filename, icon, {
+          cacheControl: '3600',
+          upsert: false,
+          headers: { 'x-supabase-storage-owner': userId }, // RLSポリシー対策
+        });
+
+      if (uploadError) {
+        console.error('Supabase icon upload error:', uploadError);
+        throw new Error('アイコンのアップロードに失敗しました。');
+      }
+
+      iconUrl = supabase.storage.from(bucketName).getPublicUrl(filename).data.publicUrl;
     } else if (formData.get('iconUrl') === '') { // Handle case where icon is removed (frontend sends empty string)
-      if (existingUser.iconUrl) {
-        const oldIconPath = path.join(process.cwd(), 'public', existingUser.iconUrl);
-        try {
-          await fs.unlink(oldIconPath);
-        } catch (unlinkError) {
-          console.error('Failed to delete old icon:', unlinkError);
+      // Delete old icon from Supabase Storage if it exists
+      if (existingUser.iconUrl && existingUser.iconUrl.startsWith(`/storage/v1/object/public/${bucketName}/`)) {
+        const oldFilename = existingUser.iconUrl.split('/').pop(); // URLからファイル名を取得
+        if (oldFilename) {
+          const { error: deleteError } = await supabase.storage.from(bucketName).remove([oldFilename]);
+          if (deleteError) {
+            console.error('Failed to delete old icon from Supabase Storage:', deleteError);
+          }
         }
       }
       iconUrl = null;

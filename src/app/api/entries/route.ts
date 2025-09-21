@@ -112,13 +112,33 @@ export async function POST(request: NextRequest) {
 
     let imageUrl: string | null = null;
     if (image) {
-      const buffer = Buffer.from(await image.arrayBuffer());
-      const filename = `${Date.now()}-${image.name}`;
-      const uploadDir = path.join(process.cwd(), 'public', 'uploads');
-      const filePath = path.join(uploadDir, filename);
+      const { createClient } = require('@supabase/supabase-js');
+      const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+      const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
-      await fs.writeFile(filePath, buffer);
-      imageUrl = `/uploads/${filename}`;
+      if (!supabaseUrl || !supabaseAnonKey) {
+        throw new Error('Supabase URL or Anon Key is not defined');
+      }
+
+      const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+        auth: { persistSession: false },
+      });
+
+      const filename = `${Date.now()}-${image.name}`;
+      const { data, error: uploadError } = await supabase.storage
+        .from('diary-images') // バケット名を指定 (例: 'diary-images')
+        .upload(filename, image, {
+          cacheControl: '3600',
+          upsert: false,
+          headers: { 'x-supabase-storage-owner': userId }, // RLSポリシー対策
+        });
+
+      if (uploadError) {
+        console.error('Supabase upload error:', uploadError);
+        throw new Error('画像のアップロードに失敗しました。');
+      }
+
+      imageUrl = supabase.storage.from('diary-images').getPublicUrl(filename).data.publicUrl;
     }
 
     // Basic validation
