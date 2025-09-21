@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import dynamic from 'next/dynamic';
 import { debounce } from 'lodash';
-import Sidebar from '@/components/FilterSidebar';
+import Sidebar, { Filters } from '@/components/FilterSidebar';
 import Image from 'next/image';
 import AlbumModal from '@/components/AlbumModal';
 import Header from '@/components/Header';

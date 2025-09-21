@@ -63,7 +63,7 @@ export async function DELETE(req: NextRequest, { params }: { params: { id: strin
 
     // 関連するブックマークを先に削除
     await prisma.bookmark.deleteMany({
-        where: { albumId: albumId },
+        where: { bookmarkAlbumId: albumId },
     });
 
     // アルバムを削除

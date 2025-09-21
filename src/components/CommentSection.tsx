@@ -23,10 +23,11 @@ interface CommentSectionProps {
   entryId: string;
   currentUserId: string | null;
   entryAuthorId: string;
+  onCommentPosted: () => void;
 }
 
 // --- MAIN COMPONENT ---
-export default function CommentSection({ entryId, currentUserId, entryAuthorId }: CommentSectionProps) {
+export default function CommentSection({ entryId, currentUserId, entryAuthorId, onCommentPosted }: CommentSectionProps) {
   const [comments, setComments] = useState<Comment[]>([]);
   const [newComment, setNewComment] = useState('');
   const [loading, setLoading] = useState(true);
@@ -64,8 +65,8 @@ export default function CommentSection({ entryId, currentUserId, entryAuthorId }
       if (!res.ok) {
         throw new Error(data.error || 'コメントの投稿に失敗しました。');
       }
-      setComments(prev => [...prev, data.comment]); // Add new comment to the list
       setNewComment(''); // Clear textarea
+      onCommentPosted(); // Call parent function to refetch data
     } catch (err) {
       alert(err instanceof Error ? err.message : '不明なエラーが発生しました');
     }

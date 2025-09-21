@@ -101,9 +101,7 @@ export default function MapComponent({ center, zoom, flyToCoords, entries, curre
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      // @ts-expect-error Leaflet's type definition is missing _getIconUrl, but it's needed for image icons to work correctly.
-      delete L.Icon.Default.prototype._getIconUrl;
-      L.Icon.Default.mergeOptions({
+            L.Icon.Default.mergeOptions({
         iconRetinaUrl: 'https://unpkg.com/leaflet@1.7.1/dist/images/marker-icon-2x.png',
         iconUrl: 'https://unpkg.com/leaflet@1.7.1/dist/images/marker-icon.png',
         shadowUrl: 'https://unpkg.com/leaflet@1.7.1/dist/images/marker-shadow.png',

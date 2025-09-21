@@ -1,42 +1,39 @@
-12:07:14.890 Running build in Washington, D.C., USA (East) – iad1
-12:07:14.890 Build machine configuration: 2 cores, 8 GB
-12:07:14.940 Cloning github.com/TsubasaShioda/ikimono_nikki (Branch: main, Commit: a3fe582)
-12:07:15.549 Cloning completed: 609.000ms
-12:07:16.430 Restored build cache from previous deployment (GcrbEbebHsDwcmfs3QynTNq8D9rH)
-12:07:16.938 Running "vercel build"
-12:07:17.312 Vercel CLI 48.0.2
-12:07:17.621 Installing dependencies...
-12:07:18.888 
-12:07:18.889 removed 14 packages in 1s
-12:07:18.889 
-12:07:18.890 156 packages are looking for funding
-12:07:18.890   run `npm fund` for details
-12:07:18.915 Detected Next.js version: 14.2.25
-12:07:18.919 Running "npm run build"
-12:07:19.023 
-12:07:19.024 > ikimono-nikki@0.1.0 build
-12:07:19.024 > next build
-12:07:19.024 
-12:07:19.670   ▲ Next.js 14.2.25
-12:07:19.670 
-12:07:19.745    Creating an optimized production build ...
-12:07:25.333 Failed to compile.
-12:07:25.333 
-12:07:25.333 ./src/app/auth/login/page.tsx
-12:07:25.334 Module not found: Can't resolve './login.module.css'
-12:07:25.335 
-12:07:25.335 https://nextjs.org/docs/messages/module-not-found
-12:07:25.335 
-12:07:25.338 ./src/app/auth/register/page.tsx
-12:07:25.338 Module not found: Can't resolve '../login/login.module.css'
-12:07:25.338 
-12:07:25.338 https://nextjs.org/docs/messages/module-not-found
-12:07:25.339 
-12:07:25.339 ./src/app/api/bookmark-albums/[id]/route.ts
-12:07:25.339 Module not found: Can't resolve '@/lib/auth'
-12:07:25.339 
-12:07:25.339 https://nextjs.org/docs/messages/module-not-found
-12:07:25.340 
-12:07:25.395 
-12:07:25.396 > Build failed because of webpack errors
-12:07:25.430 Error: Command "npm run build" exited with 1
+12:25:03.194 Running build in Washington, D.C., USA (East) – iad1
+12:25:03.195 Build machine configuration: 2 cores, 8 GB
+12:25:03.216 Cloning github.com/TsubasaShioda/ikimono_nikki (Branch: main, Commit: b6821bc)
+12:25:03.782 Cloning completed: 565.000ms
+12:25:04.871 Restored build cache from previous deployment (GcrbEbebHsDwcmfs3QynTNq8D9rH)
+12:25:05.544 Running "vercel build"
+12:25:05.937 Vercel CLI 48.0.2
+12:25:06.274 Installing dependencies...
+12:25:07.672 
+12:25:07.672 removed 14 packages in 1s
+12:25:07.672 
+12:25:07.672 156 packages are looking for funding
+12:25:07.673   run `npm fund` for details
+12:25:07.700 Detected Next.js version: 14.2.25
+12:25:07.704 Running "npm run build"
+12:25:07.815 
+12:25:07.816 > ikimono-nikki@0.1.0 build
+12:25:07.816 > next build
+12:25:07.816 
+12:25:08.502   ▲ Next.js 14.2.25
+12:25:08.503 
+12:25:08.584    Creating an optimized production build ...
+12:25:19.999  ✓ Compiled successfully
+12:25:20.000    Skipping linting
+12:25:20.000    Checking validity of types ...
+12:25:27.627 Failed to compile.
+12:25:27.628 
+12:25:27.628 ./src/app/api/auth/login/route.ts:22:58
+12:25:27.628 Type error: Property 'password_hash' does not exist on type '{ id: string; username: string; email: string; description: string | null; iconUrl: string | null; created_at: Date; }'.
+12:25:27.628 
+12:25:27.628 [0m [90m 20 |[39m[0m
+12:25:27.628 [0m [90m 21 |[39m     [90m// Compare passwords[39m[0m
+12:25:27.628 [0m[31m[1m>[22m[39m[90m 22 |[39m     [36mconst[39m isPasswordValid [33m=[39m [36mawait[39m compare(password[33m,[39m user[33m.[39mpassword_hash)[33m;[39m[0m
+12:25:27.628 [0m [90m    |[39m                                                          [31m[1m^[22m[39m[0m
+12:25:27.628 [0m [90m 23 |[39m[0m
+12:25:27.629 [0m [90m 24 |[39m     [36mif[39m ([33m![39misPasswordValid) {[0m
+12:25:27.629 [0m [90m 25 |[39m       [36mreturn[39m [33mNextResponse[39m[33m.[39mjson({ message[33m:[39m [32m'メールアドレスまたはパスワードが正しくありません'[39m }[33m,[39m { status[33m:[39m [35m401[39m })[33m;[39m[0m
+12:25:27.651 Next.js build worker exited with code: 1 and signal: null
+12:25:27.668 Error: Command "npm run build" exited with 1
