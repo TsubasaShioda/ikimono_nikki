@@ -15,7 +15,7 @@ export async function GET(request: NextRequest) {
   try {
     const token = request.cookies.get('token')?.value;
     const userPayload = await verifyToken(token);
-    const userId = userPayload?.id;
+    const userId = userPayload?.userId;
 
     if (!userId) {
       // ユーザーが認証されていない場合は、エラーではなくnullを返す
@@ -45,7 +45,7 @@ export async function PUT(request: NextRequest) {
   try {
     const token = request.cookies.get('token')?.value;
     const userPayload = await verifyToken(token);
-    const userId = userPayload?.id;
+    const userId = userPayload?.userId;
     if (!userId) {
       return NextResponse.json({ message: '認証が必要です' }, { status: 401 });
     }
@@ -94,14 +94,17 @@ export async function PUT(request: NextRequest) {
 
 
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-    const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+    const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-    if (!supabaseUrl || !supabaseAnonKey) {
-      throw new Error('Supabase URL or Anon Key is not defined');
+    if (!supabaseUrl || !supabaseServiceKey) {
+      throw new Error('Supabase URL or Service Role Key is not defined');
     }
 
-    const supabase = createClient(supabaseUrl, supabaseAnonKey, {
-      auth: { persistSession: false },
+    const supabase = createClient(supabaseUrl, supabaseServiceKey, {
+      auth: {
+        persistSession: false,
+        autoRefreshToken: false,
+      },
     });
 
     let iconUrl: string | null = existingUser.iconUrl; // 既存のiconUrlを保持
@@ -126,7 +129,6 @@ export async function PUT(request: NextRequest) {
         .upload(filename, icon, {
           cacheControl: '3600',
           upsert: false,
-          headers: { 'x-supabase-storage-owner': userId }, // RLSポリシー対策
         });
 
       if (uploadError) {

@@ -10,7 +10,7 @@ export async function GET(request: NextRequest) {
   try {
     const token = request.cookies.get('token')?.value;
     const user = await verifyToken(token);
-    const userId = user?.id;
+    const userId = user?.userId;
 
     let friendIds: string[] = [];
     let hiddenEntryIds: string[] = [];

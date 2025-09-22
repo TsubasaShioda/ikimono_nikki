@@ -1,7 +1,7 @@
 import { jwtVerify, JWTPayload } from 'jose';
 
 interface UserPayload extends JWTPayload {
-  id: string;
+  userId: string;
   // 他にJWTに含めているユーザー情報があればここに追加
 }
 
