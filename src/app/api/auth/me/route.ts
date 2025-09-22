@@ -1,33 +1,21 @@
 import { NextResponse, NextRequest } from 'next/server';
 import { PrismaClient } from '@prisma/client';
 import { jwtVerify } from 'jose';
+import { verifyToken } from '@/lib/auth';
 import { hash } from 'bcryptjs';
+import { createClient } from '@supabase/supabase-js';
 import { promises as fs } from 'fs'; // 追加
 import path from 'path'; // 追加
 
+export const dynamic = 'force-dynamic';
+
 const prisma = new PrismaClient();
-
-// Helper function to verify JWT and get userId (re-use from [id]/route.ts)
-async function getUserIdFromToken(request: NextRequest): Promise<string | null> {
-  const token = request.cookies.get('auth_token')?.value;
-  const jwtSecret = process.env.JWT_SECRET;
-
-  if (!token || !jwtSecret) {
-    return null;
-  }
-
-  try {
-    const { payload } = await jwtVerify(token, new TextEncoder().encode(jwtSecret));
-    return payload.userId as string;
-  } catch (error) {
-    console.error('Token verification failed:', error);
-    return null;
-  }
-}
 
 export async function GET(request: NextRequest) {
   try {
-    const userId = await getUserIdFromToken(request);
+    const token = request.cookies.get('token')?.value;
+    const userPayload = await verifyToken(token);
+    const userId = userPayload?.id;
 
     if (!userId) {
       // ユーザーが認証されていない場合は、エラーではなくnullを返す
@@ -55,7 +43,9 @@ export async function GET(request: NextRequest) {
 
 export async function PUT(request: NextRequest) {
   try {
-    const userId = await getUserIdFromToken(request);
+    const token = request.cookies.get('token')?.value;
+    const userPayload = await verifyToken(token);
+    const userId = userPayload?.id;
     if (!userId) {
       return NextResponse.json({ message: '認証が必要です' }, { status: 401 });
     }
@@ -102,7 +92,7 @@ export async function PUT(request: NextRequest) {
 
     const bucketName = 'user-icons'; // アイコン用のバケット名 (例: 'user-icons')
 
-    const { createClient } = require('@supabase/supabase-js');
+
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
     const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 

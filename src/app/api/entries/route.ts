@@ -1,32 +1,17 @@
 import { NextResponse, NextRequest } from 'next/server';
 import { PrismaClient, PrivacyLevel } from '@prisma/client';
-import { jwtVerify } from 'jose';
-import { promises as fs } from 'fs';
-import path from 'path';
+import { verifyToken } from '@/lib/auth';
+import { createClient } from '@supabase/supabase-js';
+
+export const dynamic = 'force-dynamic';
 
 const prisma = new PrismaClient();
 
-// Helper function to verify JWT and get userId
-async function getUserIdFromToken(request: NextRequest): Promise<string | null> {
-  const token = request.cookies.get('auth_token')?.value;
-  const jwtSecret = process.env.JWT_SECRET;
-
-  if (!token || !jwtSecret) {
-    return null;
-  }
-
-  try {
-    const { payload } = await jwtVerify(token, new TextEncoder().encode(jwtSecret));
-    return payload.userId as string;
-  } catch (error) {
-    console.error("JWT verification error:", error);
-    return null;
-  }
-}
-
 export async function GET(request: NextRequest) {
   try {
-    const userId = await getUserIdFromToken(request);
+    const token = request.cookies.get('token')?.value;
+    const user = await verifyToken(token);
+    const userId = user?.id;
 
     let entries;
     if (userId) {
@@ -79,21 +64,13 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const token = request.cookies.get('auth_token')?.value;
-    const jwtSecret = process.env.JWT_SECRET;
+    const token = request.cookies.get('token')?.value;
+    const user = await verifyToken(token);
 
-    if (!token || !jwtSecret) {
-      return NextResponse.json({ message: '認証が必要です' }, { status: 401 });
-    }
-
-    let userId: string;
-    try {
-      const { payload } = await jwtVerify(token, new TextEncoder().encode(jwtSecret));
-      userId = payload.userId as string;
-    } catch (error) {
-      console.error("Authentication token error:", error);
+    if (!user) {
       return NextResponse.json({ message: '認証トークンが無効です' }, { status: 401 });
     }
+    const userId = user.id;
 
     const formData = await request.formData();
     const title = formData.get('title') as string;
@@ -112,7 +89,7 @@ export async function POST(request: NextRequest) {
 
     let imageUrl: string | null = null;
     if (image) {
-      const { createClient } = require('@supabase/supabase-js');
+
       const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
       const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 

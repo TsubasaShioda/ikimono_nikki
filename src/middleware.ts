@@ -3,7 +3,7 @@ import type { NextRequest } from 'next/server';
 import { jwtVerify } from 'jose';
 
 export async function middleware(request: NextRequest) {
-  const token = request.cookies.get('auth_token')?.value;
+  const token = request.cookies.get('token')?.value;
   const jwtSecret = process.env.JWT_SECRET;
 
   // 認証が不要なパスを定義
@@ -35,7 +35,7 @@ export async function middleware(request: NextRequest) {
     // 検証失敗、ログインページへリダイレクトし、不正なトークンを削除
     console.error('Token verification failed:', error);
     const response = NextResponse.redirect(new URL('/auth/login', request.url));
-    response.cookies.delete('auth_token');
+    response.cookies.delete('token');
     return response;
   }
 }

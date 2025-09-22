@@ -35,7 +35,7 @@ export async function POST(request: Request) {
     const response = NextResponse.json({ message: 'ログイン成功', user: { id: user.id, username: user.username, email: user.email } }, { status: 200 });
 
     // Set HTTP-only cookie
-    response.cookies.set('auth_token', token, {
+    response.cookies.set('token', token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production', // Use secure in production
       sameSite: 'strict',

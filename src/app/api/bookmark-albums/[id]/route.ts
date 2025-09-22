@@ -2,12 +2,14 @@ import { NextRequest, NextResponse } from 'next/server';
 import { PrismaClient } from '@prisma/client';
 import { verifyToken } from '@/lib/auth';
 
+export const dynamic = 'force-dynamic';
+
 const prisma = new PrismaClient();
 
 // アルバム名変更
 export async function PUT(req: NextRequest, { params }: { params: { id: string } }) {
   const token = req.cookies.get('token')?.value;
-  const user = verifyToken(token);
+  const user = await verifyToken(token);
 
   if (!user) {
     return NextResponse.json({ error: '認証が必要です' }, { status: 401 });
@@ -44,7 +46,7 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
 // アルバム削除
 export async function DELETE(req: NextRequest, { params }: { params: { id: string } }) {
   const token = req.cookies.get('token')?.value;
-  const user = verifyToken(token);
+  const user = await verifyToken(token);
 
   if (!user) {
     return NextResponse.json({ error: '認証が必要です' }, { status: 401 });
