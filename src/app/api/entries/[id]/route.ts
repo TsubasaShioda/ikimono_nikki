@@ -1,28 +1,9 @@
 import { NextResponse, NextRequest } from 'next/server';
 import { PrismaClient, PrivacyLevel } from '@prisma/client';
-import { jwtVerify } from 'jose';
-import { promises as fs } from 'fs';
-import path from 'path';
+import { verifyToken } from '@/lib/auth';
+import { createClient } from '@supabase/supabase-js';
 
 const prisma = new PrismaClient();
-
-// Helper function to verify JWT and get userId
-async function getUserIdFromToken(request: NextRequest): Promise<string | null> {
-  const token = request.cookies.get('auth_token')?.value;
-  const jwtSecret = process.env.JWT_SECRET;
-
-  if (!token || !jwtSecret) {
-    return null;
-  }
-
-  try {
-    const { payload } = await jwtVerify(token, new TextEncoder().encode(jwtSecret));
-    return payload.userId as string;
-  } catch (error) {
-    console.error('Token verification failed:', error);
-    return null;
-  }
-}
 
 // GET method to fetch a single diary entry by ID
 export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
@@ -47,7 +28,9 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
     }
 
     // 閲覧権限のチェック
-    const userId = await getUserIdFromToken(request);
+    const token = request.cookies.get('token')?.value;
+    const user = await verifyToken(token);
+    const userId = user?.userId;
 
     if (entry.privacyLevel !== PrivacyLevel.PUBLIC && entry.privacyLevel !== PrivacyLevel.PUBLIC_ANONYMOUS && entry.userId !== userId) {
       if (entry.privacyLevel === PrivacyLevel.FRIENDS_ONLY) {
@@ -101,7 +84,9 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
 export async function PUT(request: NextRequest, { params }: { params: { id: string } }) {
   try {
     const { id } = params;
-    const userId = await getUserIdFromToken(request);
+    const token = request.cookies.get('token')?.value;
+    const user = await verifyToken(token);
+    const userId = user?.userId;
 
     if (!userId) {
       return NextResponse.json({ message: '認証が必要です' }, { status: 401 });
@@ -127,21 +112,59 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
     const privacyLevel = formData.get('privacyLevel') as PrivacyLevel;
     let imageUrl = existingEntry.imageUrl;
 
+    // Supabaseクライアントの初期化
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+    if (!supabaseUrl || !supabaseServiceKey) {
+      throw new Error('Supabase URL or Service Role Key is not defined');
+    }
+    const supabase = createClient(supabaseUrl, supabaseServiceKey, {
+      auth: {
+        persistSession: false,
+        autoRefreshToken: false,
+      },
+    });
+
+    const bucketName = 'diary-images'; // 日記画像用のバケット名
+
     if (image) {
+      // 古い画像を削除
       if (existingEntry.imageUrl) {
-        const oldImagePath = path.join(process.cwd(), 'public', existingEntry.imageUrl);
-        try { await fs.unlink(oldImagePath); } catch (e) { console.error('Failed to delete old image:', e); }
-      }
-      const imageName = `${Date.now()}-${image.name}`;
-      imageUrl = `/uploads/${imageName}`;
-      const imagePath = path.join(process.cwd(), 'public', imageUrl);
-      await fs.writeFile(imagePath, Buffer.from(await image.arrayBuffer()));
-    } else if (formData.has('imageUrl') && !formData.get('imageUrl')) {
-        if (existingEntry.imageUrl) {
-            const oldImagePath = path.join(process.cwd(), 'public', existingEntry.imageUrl);
-            try { await fs.unlink(oldImagePath); } catch (e) { console.error('Failed to delete old image:', e); }
+        const oldFilename = existingEntry.imageUrl.split('/').pop(); // URLからファイル名を取得
+        if (oldFilename) {
+          const { error: deleteError } = await supabase.storage.from(bucketName).remove([oldFilename]);
+          if (deleteError) {
+            console.error('Failed to delete old image from Supabase Storage:', deleteError);
+          }
         }
-        imageUrl = null;
+      }
+
+      // 新しい画像をアップロード
+      const filename = `${Date.now()}-${image.name}`;
+      const { data, error: uploadError } = await supabase.storage
+        .from(bucketName)
+        .upload(filename, image, {
+          cacheControl: '3600',
+          upsert: false,
+        });
+
+      if (uploadError) {
+        console.error('Supabase upload error:', uploadError);
+        throw new Error('画像のアップロードに失敗しました。');
+      }
+      imageUrl = supabase.storage.from(bucketName).getPublicUrl(filename).data.publicUrl;
+    } else if (formData.has('imageUrl') && !formData.get('imageUrl')) { // 画像が削除された場合
+      if (existingEntry.imageUrl) {
+        const oldFilename = existingEntry.imageUrl.split('/').pop();
+        if (oldFilename) {
+          const { error: deleteError } = await supabase.storage.from(bucketName).remove([oldFilename]);
+          if (deleteError) {
+            console.error('Failed to delete old image from Supabase Storage:', deleteError);
+          }
+        }
+      }
+      imageUrl = null;
     }
 
     const updatedEntry = await prisma.diaryEntry.update({
@@ -167,7 +190,9 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
 export async function DELETE(request: NextRequest, { params }: { params: { id: string } }) {
   try {
     const { id } = params;
-    const userId = await getUserIdFromToken(request);
+    const token = request.cookies.get('token')?.value;
+    const user = await verifyToken(token);
+    const userId = user?.userId;
 
     if (!userId) {
       return NextResponse.json({ message: '認証が必要です' }, { status: 401 });
@@ -183,9 +208,30 @@ export async function DELETE(request: NextRequest, { params }: { params: { id: s
       return NextResponse.json({ message: 'この日記を削除する権限がありません' }, { status: 403 });
     }
 
+    // Supabaseクライアントの初期化
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+    if (!supabaseUrl || !supabaseServiceKey) {
+      throw new Error('Supabase URL or Service Role Key is not defined');
+    }
+    const supabase = createClient(supabaseUrl, supabaseServiceKey, {
+      auth: {
+        persistSession: false,
+        autoRefreshToken: false,
+      },
+    });
+
+    const bucketName = 'diary-images'; // 日記画像用のバケット名
+
     if (entryToDelete.imageUrl) {
-      const imagePath = path.join(process.cwd(), 'public', entryToDelete.imageUrl);
-      try { await fs.unlink(imagePath); } catch (e) { console.error('Failed to delete image:', e); }
+      const filename = entryToDelete.imageUrl.split('/').pop(); // URLからファイル名を取得
+      if (filename) {
+        const { error: deleteError } = await supabase.storage.from(bucketName).remove([filename]);
+        if (deleteError) {
+          console.error('Failed to delete image from Supabase Storage:', deleteError);
+        }
+      }
     }
 
     await prisma.diaryEntry.delete({ where: { id } });
