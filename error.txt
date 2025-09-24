@@ -1,68 +1,32 @@
-npm run dev
+Can't reach database server at `db.yxkdljxqvwgihkuftcdy.supabase.co:5432`
 
-> ikimono-nikki@0.1.0 dev
-> next dev
-
-  ▲ Next.js 14.2.25
-  - Local:        http://localhost:3000
-  - Environments: .env
-
- ✓ Starting...
- ✓ Ready in 1282ms
- ✓ Compiled /src/middleware in 64ms
- ✓ Compiled (152 modules)
- ○ Compiling /settings ...
- ✓ Compiled /settings in 966ms (601 modules)
- GET /settings 200 in 1058ms
- ✓ Compiled /api/auth/me in 188ms (334 modules)
- ✓ Compiled (522 modules)
- GET /favicon.ico 200 in 548ms
- GET /api/auth/me 200 in 1057ms
- ⨯ upstream image response failed for https://yxkdljxqvwgihkuftcdy.supabase.co/storage/v1/object/public/user-icons/1758546069529-icon-Wilson_Warbler_0019_175175.jpg 400
- PUT /api/auth/me 200 in 185ms
- PUT /api/auth/me 200 in 622ms
- ⨯ upstream image response failed for https://yxkdljxqvwgihkuftcdy.supabase.co/storage/v1/object/public/user-icons/1758546173780-icon-Wilson_Warbler_0019_175175.jpg 400
- ✓ Compiled / in 348ms (951 modules)
- GET /favicon.ico 200 in 8ms
- GET /api/auth/me 200 in 411ms
- ✓ Compiled /api/entries/search in 124ms (588 modules)
- GET /api/entries/search? 200 in 931ms
- ✓ Compiled /api/categories in 55ms (590 modules)
- ✓ Compiled (592 modules)
- GET /api/notifications 401 in 115ms
- GET /api/notifications 401 in 2ms
- GET /api/entries/search? 200 in 214ms
- ⨯ upstream image response failed for https://yxkdljxqvwgihkuftcdy.supabase.co/storage/v1/object/public/user-icons/1758546173780-icon-Wilson_Warbler_0019_175175.jpg 400
- GET /api/categories 200 in 454ms
- GET /favicon.ico 200 in 30ms
- GET /api/auth/me 200 in 390ms
- ⨯ upstream image response failed for https://yxkdljxqvwgihkuftcdy.supabase.co/storage/v1/object/public/user-icons/1758546173780-icon-Wilson_Warbler_0019_175175.jpg 400
- GET /favicon.ico 200 in 18ms
- GET /api/auth/me 200 in 55ms
- GET /api/entries/search? 200 in 739ms
- GET /api/notifications 401 in 12ms
- GET /api/notifications 401 in 8ms
- GET /api/categories 200 in 54ms
- GET /api/entries/search? 200 in 223ms
- ⨯ upstream image response failed for https://yxkdljxqvwgihkuftcdy.supabase.co/storage/v1/object/public/user-icons/1758546173780-icon-Wilson_Warbler_0019_175175.jpg 400
- GET /api/entries/search?minLat=26.187636975779867&maxLat=26.300340335042367&minLng=127.66387939453126&maxLng=127.91347503662111 200 in 268ms
- ✓ Compiled /entries/new in 260ms (952 modules)
- GET /favicon.ico 200 in 4ms
- GET /api/categories 200 in 362ms
- ✓ Compiled /api/entries in 321ms (601 modules)
- POST /api/entries 201 in 1375ms
- POST /api/entries 201 in 913ms
- GET /favicon.ico 200 in 6ms
- GET /api/auth/me 200 in 374ms
- GET /api/entries/search? 200 in 750ms
- GET /api/notifications 401 in 42ms
- GET /api/notifications 401 in 10ms
- GET /api/entries/search? 200 in 225ms
- ⨯ upstream image response failed for https://yxkdljxqvwgihkuftcdy.supabase.co/storage/v1/object/public/user-icons/1758546173780-icon-Wilson_Warbler_0019_175175.jpg 400
- GET /api/categories 200 in 402ms
- ⨯ upstream image response failed for https://yxkdljxqvwgihkuftcdy.supabase.co/storage/v1/object/public/user-icons/1758546173780-icon-Wilson_Warbler_0019_175175.jpg 400
- ⨯ upstream image response failed for https://yxkdljxqvwgihkuftcdy.supabase.co/storage/v1/object/public/user-icons/1758546173780-icon-Wilson_Warbler_0019_175175.jpg 400
- ⨯ upstream image response failed for https://yxkdljxqvwgihkuftcdy.supabase.co/storage/v1/object/public/diary-images/1758546216182-Wilson_Warbler_0134_175374.jpg 400
- GET /api/entries/search?minLat=26.199651550799523&maxLat=26.31234326170601&minLng=127.66387939453126&maxLng=127.91347503662111 200 in 273ms
- GET /api/entries/search?minLat=26.19995960052833&maxLat=26.312651012709743&minLng=127.66387939453126&maxLng=127.91347503662111 200 in 218ms
-
+Please make sure your database server is running at `db.yxkdljxqvwgihkuftcdy.supabase.co:5432`.
+    at ei.handleRequestError (/Users/shiodatsubasa/ikimono-nikki/node_modules/@prisma/client/runtime/library.js:121:7583)
+    at ei.handleAndLogRequestError (/Users/shiodatsubasa/ikimono-nikki/node_modules/@prisma/client/runtime/library.js:121:6608)
+    at ei.request (/Users/shiodatsubasa/ikimono-nikki/node_modules/@prisma/client/runtime/library.js:121:6315)
+    at async a (/Users/shiodatsubasa/ikimono-nikki/node_modules/@prisma/client/runtime/library.js:130:9551)
+    at async POST (webpack-internal:///(rsc)/./src/app/api/auth/login/route.ts:20:22)
+    at async /Users/shiodatsubasa/ikimono-nikki/node_modules/next/dist/compiled/next-server/app-route.runtime.dev.js:6:57228
+    at async eT.execute (/Users/shiodatsubasa/ikimono-nikki/node_modules/next/dist/compiled/next-server/app-route.runtime.dev.js:6:46851)
+    at async eT.handle (/Users/shiodatsubasa/ikimono-nikki/node_modules/next/dist/compiled/next-server/app-route.runtime.dev.js:6:58760)
+    at async doRender (/Users/shiodatsubasa/ikimono-nikki/node_modules/next/dist/server/base-server.js:1366:42)
+    at async cacheEntry.responseCache.get.routeKind (/Users/shiodatsubasa/ikimono-nikki/node_modules/next/dist/server/base-server.js:1588:28)
+    at async DevServer.renderToResponseWithComponentsImpl (/Users/shiodatsubasa/ikimono-nikki/node_modules/next/dist/server/base-server.js:1496:28)
+    at async DevServer.renderPageComponent (/Users/shiodatsubasa/ikimono-nikki/node_modules/next/dist/server/base-server.js:1924:24)
+    at async DevServer.renderToResponseImpl (/Users/shiodatsubasa/ikimono-nikki/node_modules/next/dist/server/base-server.js:1962:32)
+    at async DevServer.pipeImpl (/Users/shiodatsubasa/ikimono-nikki/node_modules/next/dist/server/base-server.js:922:25)
+    at async NextNodeServer.handleCatchallRenderRequest (/Users/shiodatsubasa/ikimono-nikki/node_modules/next/dist/server/next-server.js:272:17)
+    at async DevServer.handleRequestImpl (/Users/shiodatsubasa/ikimono-nikki/node_modules/next/dist/server/base-server.js:818:17)
+    at async /Users/shiodatsubasa/ikimono-nikki/node_modules/next/dist/server/dev/next-dev-server.js:339:20
+    at async Span.traceAsyncFn (/Users/shiodatsubasa/ikimono-nikki/node_modules/next/dist/trace/trace.js:154:20)
+    at async DevServer.handleRequest (/Users/shiodatsubasa/ikimono-nikki/node_modules/next/dist/server/dev/next-dev-server.js:336:24)
+    at async invokeRender (/Users/shiodatsubasa/ikimono-nikki/node_modules/next/dist/server/lib/router-server.js:182:21)
+    at async handleRequest (/Users/shiodatsubasa/ikimono-nikki/node_modules/next/dist/server/lib/router-server.js:359:24)
+    at async requestHandlerImpl (/Users/shiodatsubasa/ikimono-nikki/node_modules/next/dist/server/lib/router-server.js:383:13)
+    at async Server.requestListener (/Users/shiodatsubasa/ikimono-nikki/node_modules/next/dist/server/lib/start-server.js:141:13) {
+  clientVersion: '6.15.0',
+  errorCode: undefined,
+  retryable: undefined
+}
+Login error: PrismaClientInitializationError: 
+Invalid `prisma.user.findUnique()` invocation:

@@ -1,40 +1,3 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
-
-## Getting Started
-
-First, run the development server:
-
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
-
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
-
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
-
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
-
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
-
 ---
 
 # 基本設計書：生き物日記アプリ
@@ -54,51 +17,144 @@ Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/bui
 
 | 大項目 | 機能 | 詳細 |
 | :--- | :--- | :--- |
-| ユーザー管理 | ユーザー認証 | - メールアドレスとパスワードによる新規登録・ログイン機能<br>- ログアウト機能 |
-| 日記管理 | 日記投稿機能 | - 生き物の名前、説明、写真、発見日時を記録できる<br>- 地図上をクリックして場所を指定できる<br>- GPSを使用して現在地を取得する機能 |
-| | 日記編集・削除機能 | - 投稿した日記の内容を後から編集・削除できる |
-| 表示機能 | 地図表示機能 | - 投稿した日記を地図上にピンで表示する<br>- ピンをクリックすると日記の概要（写真、名前）を表示する |
-| | 一覧表示機能 | - 投稿した日記を時系列やリスト形式で表示する |
-| | 詳細表示機能 | - 日記の全ての情報（写真、説明、地図など）を表示する |
-| 共有機能 | 公開設定機能 | - 日記を「公開」または「非公開」に設定できる |
-| | 他ユーザーの記録表示 | - 「公開」に設定された他のユーザーの日記を地図上や一覧で閲覧できる |
+| ユーザー管理 | ユーザー認証 | - メールアドレスとパスワードによる新規登録・ログイン機能<br>- ログアウト機能<br>- JWTベースの認証（joseライブラリ使用）<br>- プロフィール編集（ユーザー名、メールアドレス、パスワード、自己紹介、アイコン画像） |
+| | フレンド機能 | - ユーザー検索<br>- フレンド申請・承認・拒否<br>- フレンド一覧表示・解除 |
+| | 非表示機能 | - 特定の投稿を非表示<br>- 特定のユーザーの投稿を非表示（フレンド管理ページから再表示可能） |
+| 日記管理 | 日記投稿機能 | - 生き物の名前、説明、写真（Supabase Storage）、発見日時、カテゴリを記録できる<br>- 地図上をクリックして場所を指定できる<br>- GPSを使用して現在地を取得する機能<br>- 自動下書き保存機能 |
+| | 日記編集・削除機能 | - 投稿した日記の内容を後から編集・削除できる<br>- 公開レベル（公開、フレンドのみ、非公開、フレンド以外に匿名公開）の変更 |
+| | コメント機能 | - 日記へのコメント投稿・表示・削除 |
+| 表示機能 | 地図表示機能 | - 投稿した日記を地図上にピンで表示する<br>- ピンをクリックすると日記の概要（写真、名前、投稿者）を表示する<br>- 自分の投稿と他人の投稿を色分け<br>- 都道府県への地図ジャンプ機能 |
+| | 一覧表示機能 | - 自分の日記一覧、特定のユーザーの日記一覧をリスト形式で表示する |
+| | 詳細表示機能 | - 個別の日記の全情報（写真、説明、地図、コメント）を表示する |
+| | 通知機能 | - フレンド申請、コメント、いいねなどの通知表示・既読管理 |
+| | アルバム機能 | - 日記をアルバムに保存・管理<br>- アルバム内の日記一覧表示 |
+| 共有機能 | 公開設定機能 | - 日記を「公開」「フレンドのみ」「非公開」「フレンド以外に匿名公開」に設定できる |
+| | 他ユーザーの記録表示 | - 公開設定された他のユーザーの日記を地図上や一覧で閲覧できる |
 | 検索機能 | キーワード検索 | - 生き物の名前や説明文に含まれるキーワードで日記を検索できる |
 | | エリア検索 | - 地図上で範囲を指定し、その中の記録を検索できる |
+| | フィルター機能 | - カテゴリ、発見日（期間指定）、時間帯（朝・昼・夜）、月ごとの複数選択、表示範囲（自分のみ、フレンドのみ）で絞り込み |
+| その他 | 使い方表示 | - アプリケーションの使い方をモーダルで表示（スマホはアイコン、PCはテキストリンク） |
 
 ## 4. 画面設計
 
-1.  トップページ: アプリケーションの紹介、ログイン・新規登録への導線。
+1.  トップページ（地図）: ユーザー自身の、または公開されている日記が地図上に表示される。ログイン状態に応じてヘッダー表示が変化。
 2.  ログイン/新規登録ページ: 認証フォーム。
-3.  メインページ（地図）: ユーザー自身の、または公開されている日記が地図上に表示される。
-4.  日記投稿/編集ページ: 日記情報を入力するフォーム。
-5.  日記一覧ページ: 投稿を時系列リストで表示する。
-6.  日記詳細ページ: 個別の日記の全情報を表示する。
-7.  設定ページ: プロフィール編集、公開設定の変更など。
+3.  メインページ（地図）: ユーザー自身の、または公開されている日記が地図上に表示される。ログイン状態に応じてヘッダー表示が変化。
+4.  日記投稿/編集ページ: 日記情報を入力するフォーム。地図上での座標選択、画像アップロード、公開レベル、カテゴリ選択。
+5.  日記一覧ページ: 自分の日記、または特定のユーザーの日記を時系列リストで表示する。
+6.  日記詳細ページ: 個別の日記の全情報（写真、説明、地図、コメント）を表示する。
+7.  設定ページ: プロフィール編集（ユーザー名、メールアドレス、パスワード、自己紹介、アイコン画像）。
+8.  フレンド管理ページ: ユーザー検索、フレンド申請・承認・拒否、フレンド一覧、非表示ユーザー一覧。
+9.  アルバム管理ページ: アルバムの作成・管理、保存した日記の一覧表示。
+10. 使い方モーダル: アプリケーションの使い方をポップアップで表示。
 
 ## 5. データ設計（データベーススキーマ案）
 
-### 5.1. `users` テーブル
+### 5.1. `User` テーブル
 | カラム名 | データ型 | 説明 |
 | :--- | :--- | :--- |
 | `id` | `uuid` | ユーザーID (主キー) |
-| `username` | `varchar(255)` | ユーザー名 |
+| `username` | `varchar(255)` | ユーザー名 (ユニーク) |
 | `email` | `varchar(255)` | メールアドレス (ユニーク) |
 | `password_hash` | `varchar(255)` | ハッシュ化されたパスワード |
-| `created_at` | `timestamp` | 登録日時 |
+| `description` | `text` | 自己紹介文 |
+| `iconUrl` | `varchar(255)` | プロフィールアイコンのURL |
+| `createdAt` | `timestamp` | 登録日時 |
+| `updatedAt` | `timestamp` | 更新日時 |
 
-### 5.2. `diary_entries` テーブル
+### 5.2. `DiaryEntry` テーブル
 | カラム名 | データ型 | 説明 |
 | :--- | :--- | :--- |
 | `id` | `uuid` | 日記ID (主キー) |
-| `user_id` | `uuid` | 投稿したユーザーのID (外部キー) |
+| `userId` | `uuid` | 投稿したユーザーのID (外部キー) |
+| `categoryId` | `uuid` | カテゴリID (外部キー) |
 | `title` | `varchar(255)` | 生き物の名前・タイトル |
 | `description` | `text` | 説明文 |
-| `image_url` | `varchar(255)` | アップロードした画像のURL |
+| `imageUrl` | `varchar(255)` | アップロードした画像のURL |
 | `latitude` | `double precision` | 緯度 |
 | `longitude` | `double precision` | 経度 |
-| `is_public` | `boolean` | 公開設定 (true: 公開) |
-| `taken_at` | `timestamp` | 発見日時 |
-| `created_at` | `timestamp` | 投稿日時 |
+| `privacyLevel` | `enum` | 公開設定 (PRIVATE, FRIENDS_ONLY, PUBLIC, PUBLIC_ANONYMOUS) |
+| `takenAt` | `timestamp` | 発見日時 |
+| `createdAt` | `timestamp` | 投稿日時 |
+| `updatedAt` | `timestamp` | 更新日時 |
+
+### 5.3. `Category` テーブル
+| カラム名 | データ型 | 説明 |
+| :--- | :--- | :--- |
+| `id` | `uuid` | カテゴリID (主キー) |
+| `name` | `varchar(255)` | カテゴリ名 (ユニーク) |
+
+### 5.4. `Friendship` テーブル
+| カラム名 | データ型 | 説明 |
+| :--- | :--- | :--- |
+| `id` | `uuid` | フレンドシップID (主キー) |
+| `requesterId` | `uuid` | 申請者のユーザーID (外部キー) |
+| `addresseeId` | `uuid` | 受信者のユーザーID (外部キー) |
+| `status` | `enum` | 関係の状態 (PENDING, ACCEPTED, REJECTED) |
+| `createdAt` | `timestamp` | 作成日時 |
+| `updatedAt` | `timestamp` | 更新日時 |
+
+### 5.5. `Comment` テーブル
+| カラム名 | データ型 | 説明 |
+| :--- | :--- | :--- |
+| `id` | `uuid` | コメントID (主キー) |
+| `diaryEntryId` | `uuid` | コメント対象の日記ID (外部キー) |
+| `userId` | `uuid` | コメントしたユーザーのID (外部キー) |
+| `content` | `text` | コメント内容 |
+| `createdAt` | `timestamp` | 投稿日時 |
+| `updatedAt` | `timestamp` | 更新日時 |
+
+### 5.6. `Like` テーブル
+| カラム名 | データ型 | 説明 |
+| :--- | :--- | :--- |
+| `id` | `uuid` | いいねID (主キー) |
+| `diaryEntryId` | `uuid` | いいね対象の日記ID (外部キー) |
+| `userId` | `uuid` | いいねしたユーザーのID (外部キー) |
+| `createdAt` | `timestamp` | 作成日時 |
+
+### 5.7. `Notification` テーブル
+| カラム名 | データ型 | 説明 |
+| :--- | :--- | :--- |
+| `id` | `uuid` | 通知ID (主キー) |
+| `recipientId` | `uuid` | 通知を受け取るユーザーID (外部キー) |
+| `senderId` | `uuid` | 通知を発生させたユーザーID (外部キー、nullable) |
+| `type` | `enum` | 通知の種類 (FRIEND_REQUEST, COMMENT, LIKE) |
+| `message` | `text` | 通知メッセージ |
+| `isRead` | `boolean` | 既読フラグ |
+| `createdAt` | `timestamp` | 作成日時 |
+
+### 5.8. `BookmarkAlbum` テーブル
+| カラム名 | データ型 | 説明 |
+| :--- | :--- | :--- |
+| `id` | `uuid` | アルバムID (主キー) |
+| `userId` | `uuid` | アルバム所有者のユーザーID (外部キー) |
+| `name` | `varchar(255)` | アルバム名 |
+| `createdAt` | `timestamp` | 作成日時 |
+| `updatedAt` | `timestamp` | 更新日時 |
+
+### 5.9. `Bookmark` テーブル
+| カラム名 | データ型 | 説明 |
+| :--- | :--- | :--- |
+| `id` | `uuid` | ブックマークID (主キー) |
+| `bookmarkAlbumId` | `uuid` | 所属するアルバムID (外部キー) |
+| `diaryEntryId` | `uuid` | ブックマークした日記ID (外部キー) |
+| `createdAt` | `timestamp` | 作成日時 |
+
+### 5.10. `HiddenEntry` テーブル
+| カラム名 | データ型 | 説明 |
+| :--- | :--- | :--- |
+| `id` | `uuid` | 非表示エントリID (主キー) |
+| `userId` | `uuid` | 非表示設定したユーザーID (外部キー) |
+| `entryId` | `uuid` | 非表示対象の日記ID (外部キー) |
+| `createdAt` | `timestamp` | 作成日時 |
+
+### 5.11. `HiddenUser` テーブル
+| カラム名 | データ型 | 説明 |
+| :--- | :--- | :--- |
+| `id` | `uuid` | 非表示ユーザーID (主キー) |
+| `userId` | `uuid` | 非表示設定したユーザーID (外部キー) |
+| `hiddenUserId` | `uuid` | 非表示対象のユーザーID (外部キー) |
+| `createdAt` | `timestamp` | 作成日時 |
 
 ## 6. 技術スタック
 
@@ -106,5 +162,8 @@ Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/bui
 -   言語: TypeScript
 -   スタイリング: Tailwind CSS
 -   ORM: Prisma
--   地図ライブラリ: Leaflet
--   データベース: MySQL
+-   地図ライブラリ: Leaflet, React-Leaflet
+-   データベース: PostgreSQL (Supabase)
+-   認証: jose (JWT)
+-   画像ストレージ: Supabase Storage
+-   その他: lodash, bcryptjs

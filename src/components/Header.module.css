@@ -166,3 +166,22 @@
         gap: 1rem; /* 画面が広い場合はボタンの間隔を広げる */
     }
 }
+
+.infoIconCircle {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background-color: #4caf50; /* 緑色 */
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    font-size: 1.2rem;
+    cursor: pointer;
+    transition: background-color 0.2s ease-in-out;
+}
+
+.infoIconCircle:hover {
+    background-color: #388e3c; /* 少し濃い緑 */
+}

@@ -4,6 +4,8 @@ import { useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import NotificationBell from './NotificationBell';
+import InfoModal from './InfoModal'; // 追加
+import InfoModalContent from './InfoModalContent'; // 追加
 import styles from './Header.module.css';
 
 // Propsの型定義
@@ -44,9 +46,19 @@ const LogoutIcon = () => (
     </svg>
 );
 
+const InfoIcon = () => (
+  <div className={styles.infoIconCircle}>
+    <span className={styles.infoIconText}>I</span>
+  </div>
+);
+
 
 // --- ヘッダーコンポーネント本体 --- //
 export default function Header({ currentUser, onLogout, onOpenSidebar }: HeaderProps) {
+  const [isInfoModalOpen, setIsInfoModalOpen] = useState(false);
+
+  const openInfoModal = () => setIsInfoModalOpen(true);
+  const closeInfoModal = () => setIsInfoModalOpen(false);
 
   // PC表示用のナビゲーションリンク
   const PcNavLinks = () => (
@@ -55,6 +67,7 @@ export default function Header({ currentUser, onLogout, onOpenSidebar }: HeaderP
       <Link href="/entries/my" className={`${styles.btn} ${styles.btnSecondary}`}>自分の日記</Link>
       <Link href="/albums" className={`${styles.btn} ${styles.btnSecondary}`}>アルバム</Link>
       <Link href="/friends" className={`${styles.btn} ${styles.btnSecondary}`}>フレンド</Link>
+      <button onClick={openInfoModal} className={`${styles.btn} ${styles.btnSecondary}`}>使い方</button>
       <button onClick={onLogout} className={`${styles.btn} ${styles.btnDanger}`}>ログアウト</button>
     </>
   );
@@ -71,10 +84,14 @@ export default function Header({ currentUser, onLogout, onOpenSidebar }: HeaderP
         <div className="flex items-center">
           {/* PC用ナビゲーション */}
           <nav className={styles.nav}>
-            {/* ★ 修正：ヘッダー内のフィルターボタンを削除 */}
+            <button onClick={openInfoModal} className={`${styles.btn} ${styles.btnSecondary}`}>使い方</button>
             {currentUser ? (
               <>
-                <PcNavLinks />
+                <Link href="/entries/new" className={`${styles.btn} ${styles.btnPrimary}`}>新しい日記</Link>
+                <Link href="/entries/my" className={`${styles.btn} ${styles.btnSecondary}`}>自分の日記</Link>
+                <Link href="/albums" className={`${styles.btn} ${styles.btnSecondary}`}>アルバム</Link>
+                <Link href="/friends" className={`${styles.btn} ${styles.btnSecondary}`}>フレンド</Link>
+                <button onClick={onLogout} className={`${styles.btn} ${styles.btnDanger}`}>ログアウト</button>
                 <NotificationBell />
                 <Link href="/settings" className="w-10 h-10 rounded-full overflow-hidden bg-gray-200 flex items-center justify-center hover:opacity-80 transition-opacity">
                   {currentUser.iconUrl ? (
@@ -94,6 +111,9 @@ export default function Header({ currentUser, onLogout, onOpenSidebar }: HeaderP
 
           {/* モバイル用ナビゲーション */}
           <div className={styles.mobileNav}>
+            <button onClick={openInfoModal} className={styles.iconButton} title="使い方">
+              <InfoIcon />
+            </button>
             {currentUser ? (
               <>
                 {/* ★ 修正：ヘッダー内のフィルターアイコンを削除 */}
@@ -127,6 +147,10 @@ export default function Header({ currentUser, onLogout, onOpenSidebar }: HeaderP
       <button onClick={onOpenSidebar} className={styles.filterTab} title="フィルター">
         <FilterIcon />
       </button>
+
+      <InfoModal isOpen={isInfoModalOpen} onClose={closeInfoModal}>
+        <InfoModalContent />
+      </InfoModal>
     </>
   );
 }

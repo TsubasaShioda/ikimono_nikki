@@ -1,0 +1,18 @@
+.post_it {
+    background-color: #fffac8;
+    padding: 30px 40px;
+    border-radius: 8px;
+    text-align: center;
+    position: relative;
+    width: 350px; /* PCでのサイズ */
+    max-width: 100%; /* はみ出さないように */
+    box-sizing: border-box;
+    box-shadow: 3px 3px 10px rgba(0, 0, 0, 0.1);
+}
+
+@media (max-width: 480px) {
+    .post_it {
+        width: 95%; /* 画面幅の95%に */
+        padding: 25px 20px; /* 余白を少し小さく */
+    }
+}
