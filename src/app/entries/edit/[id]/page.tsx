@@ -1,188 +1,79 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
-import { MapContainer, TileLayer, Marker, useMapEvents } from 'react-leaflet';
-import L from 'leaflet';
-import { PrivacyLevel } from '@/lib/types';
-import Image from 'next/image';
-import { debounce } from 'lodash';
+import dynamic from 'next/dynamic';
 import Link from 'next/link';
+import { PrivacyLevel } from '@/lib/types';
+import styles from '../../new/page.module.css'; // newのスタイルを流用
 
-function MapClickHandler({ setLatitude, setLongitude }: { setLatitude: (lat: string) => void; setLongitude: (lng: string) => void }) {
-  useMapEvents({
-    click: (e) => {
-      setLatitude(e.latlng.lat.toString());
-      setLongitude(e.latlng.lng.toString());
-    },
-  });
-  return null;
-}
-
-interface DiaryEntry {
-  id: string;
-  title: string;
-  description: string | null;
-  imageUrl: string | null;
-  latitude: number;
-  longitude: number;
-  privacyLevel: PrivacyLevel;
-  takenAt: string;
-  createdAt: string;
-  userId: string;
-  categoryId: string | null;
-}
-
-interface DraftData {
-    title: string;
-    description: string;
-    latitude: string;
-    longitude: string;
-    takenAt: string;
-    privacyLevel: PrivacyLevel;
-    categoryId: string;
-    imageUrl: string | null;
-}
-
-interface Category {
-  id: string;
-  name: string;
-}
+const EditEntryMap = dynamic(() => import('@/components/EditEntryMap'), { 
+  ssr: false,
+  loading: () => <p>地図を読み込み中...</p>
+});
 
 export default function EditEntryPage() {
   const router = useRouter();
   const params = useParams();
-  const entryId = params.id as string;
-  const DRAFT_KEY = `autosave-entry-${entryId}`;
+  const id = params.id as string;
 
-  // Form state
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [imageFile, setImageFile] = useState<File | null>(null);
-  const [imageUrl, setImageUrl] = useState<string | null>(null);
+  const [existingImageUrl, setExistingImageUrl] = useState<string | null>(null);
   const [latitude, setLatitude] = useState('');
   const [longitude, setLongitude] = useState('');
   const [takenAt, setTakenAt] = useState('');
   const [privacyLevel, setPrivacyLevel] = useState<PrivacyLevel>(PrivacyLevel.PRIVATE);
-  const [categoryId, setCategoryId] = useState('');
-  const [categories, setCategories] = useState<Category[]>([]);
-
-  // Control state
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [categories, setCategories] = useState<{ id: string; name: string }[]>([]);
+  const [selectedCategoryId, setSelectedCategoryId] = useState('');
   const [loading, setLoading] = useState(true);
-  const [userLocation, setUserLocation] = useState<[number, number] | null>(null);
-  const [isClient, setIsClient] = useState(false);
-
-  // --- AUTO-DRAFT SAVE LOGIC ---
-
-  const saveDraft = useCallback(debounce((data: DraftData) => {
-    localStorage.setItem(DRAFT_KEY, JSON.stringify(data));
-  }, 1500), [DRAFT_KEY]);
 
   useEffect(() => {
-    if (!loading) {
-      saveDraft({ title, description, latitude, longitude, takenAt, privacyLevel, categoryId, imageUrl });
-    }
-  }, [title, description, latitude, longitude, takenAt, privacyLevel, categoryId, imageUrl, loading, saveDraft]);
+    if (!id) return;
 
-  // --- END AUTO-DRAFT LOGIC ---
-
-  useEffect(() => {
-    setIsClient(true);
-  }, []);
-
-  // Fetch categories
-  useEffect(() => {
-    if (isClient) {
-      const fetchCategories = async () => {
-        try {
-          const response = await fetch('/api/categories');
-          const data = await response.json();
-          if (response.ok) {
-            setCategories(data.categories);
-          } else {
-            console.error('Failed to fetch categories:', data.message);
-          }
-        } catch (err) {
-          console.error('Error fetching categories:', err);
+    const fetchInitialData = async () => {
+      setLoading(true);
+      try {
+        // カテゴリを取得
+        const catResponse = await fetch('/api/categories');
+        if (catResponse.ok) {
+          const catData = await catResponse.json();
+          setCategories(catData.categories);
+        } else {
+          console.error('Failed to fetch categories');
         }
-      };
-      fetchCategories();
-    }
-  }, [isClient]);
 
-  // Fetch existing entry data and check for drafts
-  useEffect(() => {
-    if (isClient && entryId) {
-      const fetchAndRestore = async () => {
-        try {
-          const response = await fetch(`/api/entries/${entryId}`);
-          const data = await response.json();
-
-          if (response.ok) {
-            const entry: DiaryEntry = data.entry;
-            setTitle(entry.title);
-            setDescription(entry.description || '');
-            setImageUrl(entry.imageUrl);
-            setLatitude(entry.latitude.toString());
-            setLongitude(entry.longitude.toString());
-            setTakenAt(new Date(entry.takenAt).toISOString().slice(0, 16));
-            setPrivacyLevel(entry.privacyLevel);
-            setCategoryId(entry.categoryId || '');
-
-            // Check for a draft after fetching initial data
-            const savedDraft = localStorage.getItem(DRAFT_KEY);
-            if (savedDraft) {
-              const draftData: DraftData = JSON.parse(savedDraft);
-              if (window.confirm('未保存の下書きがあります。復元しますか？')) {
-                setTitle(draftData.title);
-                setDescription(draftData.description);
-                setLatitude(draftData.latitude);
-                setLongitude(draftData.longitude);
-                setTakenAt(draftData.takenAt);
-                setPrivacyLevel(draftData.privacyLevel);
-                setCategoryId(draftData.categoryId);
-                setImageUrl(draftData.imageUrl);
-              }
-              localStorage.removeItem(DRAFT_KEY);
-            }
-          } else {
-            setError(data.message || '日記の取得に失敗しました。');
-          }
-        } catch (err) {
-          console.error('Fetch entry error:', err);
-          setError('日記の取得中に予期せぬエラーが発生しました。');
-        } finally {
-          setLoading(false);
+        // 日記データを取得
+        const entryResponse = await fetch(`/api/entries/${id}`);
+        if (!entryResponse.ok) {
+          const errorData = await entryResponse.json();
+          throw new Error(errorData.message || '日記の読み込みに失敗しました。');
         }
-      };
-      fetchAndRestore();
-    }
-  }, [isClient, entryId, DRAFT_KEY]);
+        const entryData = await entryResponse.json();
+        const entry = entryData.entry;
+        
+        setTitle(entry.title);
+        setDescription(entry.description || '');
+        setLatitude(entry.latitude.toString());
+        setLongitude(entry.longitude.toString());
+        setTakenAt(new Date(entry.takenAt).toISOString().slice(0, 16));
+        setPrivacyLevel(entry.privacyLevel);
+        setExistingImageUrl(entry.imageUrl);
+        setSelectedCategoryId(entry.categoryId || '');
 
-  // Fetch user location for map
-  useEffect(() => {
-    if (isClient && navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        (position) => setUserLocation([position.coords.latitude, position.coords.longitude]),
-        (err) => setUserLocation([35.6895, 139.6917])
-      );
-    } else if (isClient) {
-      setUserLocation([35.6895, 139.6917]);
-    }
-  }, [isClient]);
+      } catch (err: any) {
+        console.error('Fetch initial data error:', err);
+        setError(err.message || 'データの読み込み中にエラーが発生しました。');
+      } finally {
+        setLoading(false);
+      }
+    };
 
-  // Fix for default marker icon issue with Webpack
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-            L.Icon.Default.mergeOptions({
-        iconRetinaUrl: 'https://unpkg.com/leaflet@1.7.1/dist/images/marker-icon-2x.png',
-        iconUrl: 'https://unpkg.com/leaflet@1.7.1/dist/images/marker-icon.png',
-        shadowUrl: 'https://unpkg.com/leaflet@1.7.1/dist/images/marker-shadow.png',
-      });
-    }
-  }, []);
+    fetchInitialData();
+  }, [id]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -197,210 +88,152 @@ export default function EditEntryPage() {
     const formData = new FormData();
     formData.append('title', title);
     formData.append('description', description);
-    if (imageFile) {
-      formData.append('image', imageFile);
-    } else if (imageUrl) {
-      formData.append('imageUrl', imageUrl);
-    } else {
-      formData.append('imageUrl', '');
-    }
+    if (imageFile) formData.append('image', imageFile);
     formData.append('latitude', latitude);
     formData.append('longitude', longitude);
     formData.append('takenAt', takenAt);
     formData.append('privacyLevel', privacyLevel);
-    if (categoryId) {
-      formData.append('categoryId', categoryId);
-    }
+    if (selectedCategoryId) formData.append('categoryId', selectedCategoryId);
 
     try {
-      const response = await fetch(`/api/entries/${entryId}`, {
-        method: 'PUT',
-        body: formData,
-      });
-
+      const response = await fetch(`/api/entries/${id}`, { method: 'PUT', body: formData });
       const data = await response.json();
-
       if (response.ok) {
-        localStorage.removeItem(DRAFT_KEY);
         setSuccess(data.message || '日記が正常に更新されました！');
-        setTimeout(() => router.push('/'), 1000);
+        setTimeout(() => router.push('/entries/my'), 1500);
       } else {
         setError(data.message || '日記の更新に失敗しました。');
       }
     } catch (err) {
       console.error(err);
-      setError('予期せぬエラーが発生しました。もう一度お試しください。');
+      setError('予期せぬエラーが発生しました。');
     }
   };
 
-  if (!isClient || loading) {
-    return <div className="min-h-screen flex items-center justify-center">日記を読み込み中...</div>;
-  }
-
-  if (error) {
-    return <div className="min-h-screen flex items-center justify-center text-red-500">エラー: {error}</div>;
+  if (loading) {
+    return <div className="min-h-screen flex items-center justify-center">ページを読み込み中...</div>;
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-100 p-4">
-      <div className="bg-white p-8 rounded-lg shadow-md w-full max-w-lg">
-        <h2 className="text-2xl font-bold mb-6 text-center text-gray-900">日記を編集</h2>
-        {error && <p className="text-red-500 text-center mb-4">{error}</p>}
-        {success && <p className="text-green-500 text-center mb-4">{success}</p>}
-        <form onSubmit={handleSubmit} className="space-y-4">
-          {/* Form fields... */}
-          <div>
-            <label htmlFor="title" className="block text-sm font-medium text-gray-700">タイトル (必須)</label>
-            <input
-              type="text"
-              id="title"
-              className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm text-gray-900"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              required
-            />
-          </div>
-          <div>
-            <label htmlFor="description" className="block text-sm font-medium text-gray-700">説明</label>
-            <textarea
-              id="description"
-              rows={3}
-              className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm text-gray-900"
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-            ></textarea>
-          </div>
-          <div>
-            <label htmlFor="image" className="block text-sm font-medium text-gray-700">画像</label>
-            <input
-              type="file"
-              id="image"
-              accept="image/*"
-              className="mt-1 block w-full text-sm text-gray-900 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100"
-              onChange={(e) => setImageFile(e.target.files ? e.target.files[0] : null)}
-            />
-            {imageUrl && !imageFile && (
-              <div className="mt-2">
-                <p className="text-sm text-gray-600 mb-1">現在の画像:</p>
-                <Image src={imageUrl} alt="Current" width={128} height={128} className="object-cover rounded-md" />
-                <button
-                  type="button"
-                  onClick={() => setImageUrl(null)}
-                  className="mt-1 text-red-600 hover:text-red-700 text-sm"
-                >
-                  画像を削除
-                </button>
-              </div>
-            )}
-          </div>
-          <div>
-            <label htmlFor="category" className="block text-sm font-medium text-gray-700">カテゴリ</label>
-            <select
-              id="category"
-              className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm text-gray-900"
-              value={categoryId}
-              onChange={(e) => setCategoryId(e.target.value)}
-            >
-              <option value="">選択してください</option>
-              {categories.map((category) => (
-                <option key={category.id} value={category.id}>
-                  {category.name}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label htmlFor="latitude" className="block text-sm font-medium text-gray-700">緯度 (必須)</label>
+    <div className={styles.container}>
+      <div className={styles.notebook}>
+        <div className={styles.spiral}></div>
+        <div className={styles.formContent}>
+          <h2 className={styles.title}>日記を編集</h2>
+          {error && <p className={styles.error}>{error}</p>}
+          {success && <p className={styles.success}>{success}</p>}
+          <form onSubmit={handleSubmit} className={styles.form}>
+            
+            <div className={styles.formGroup}>
+              <label htmlFor="title" className={styles.label}>タイトル (必須)</label>
               <input
-                type="number"
-                id="latitude"
-                step="any"
-                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm text-gray-900"
-                value={latitude}
-                onChange={(e) => setLatitude(e.target.value)}
+                type="text"
+                id="title"
+                className={styles.ruledInput}
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
                 required
               />
             </div>
-            <div>
-              <label htmlFor="longitude" className="block text-sm font-medium text-gray-700">経度 (必須)</label>
-              <input
-                type="number"
-                id="longitude"
-                step="any"
-                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm text-gray-900"
-                value={longitude}
-                onChange={(e) => setLongitude(e.target.value)}
-                required
-              />
+
+            <div className={styles.formGroup}>
+              <label htmlFor="description" className={styles.label}>説明</label>
+              <textarea
+                id="description"
+                rows={1}
+                className={styles.ruledTextarea}
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                onInput={(e) => {
+                  const target = e.currentTarget;
+                  target.style.height = 'auto';
+                  target.style.height = `${target.scrollHeight}px`;
+                }}
+              ></textarea>
             </div>
-          </div>
-          {userLocation && (
-            <div style={{ height: '300px', width: '100%' }}>
-              <MapContainer center={[parseFloat(latitude) || userLocation[0], parseFloat(longitude) || userLocation[1]]} zoom={13} scrollWheelZoom={true} style={{ height: '100%', width: '100%' }}>
-                <TileLayer
-                  attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-                  url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-                />
-                {latitude && longitude && (
-                  <Marker position={[parseFloat(latitude), parseFloat(longitude)]}></Marker>
-                )}
-                <MapClickHandler setLatitude={setLatitude} setLongitude={setLongitude} />
-              </MapContainer>
-            </div>
-          )}
-          <div>
-            <label htmlFor="takenAt" className="block text-sm font-medium text-gray-700">発見日時 (必須)</label>
-            <input
-              type="datetime-local"
-              id="takenAt"
-              className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm text-gray-900"
-              value={takenAt}
-              onChange={(e) => setTakenAt(e.target.value)}
-              required
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700">公開設定</label>
-            <div className="mt-2 space-y-2">
-              {Object.values(PrivacyLevel).map((level) => (
-                <div className="flex items-center" key={level}>
-                  <input
-                    id={`privacy-${level}`}
-                    name="privacyLevel"
-                    type="radio"
-                    className="focus:ring-indigo-500 h-4 w-4 text-indigo-600 border-gray-300"
-                    value={level}
-                    checked={privacyLevel === level}
-                    onChange={(e) => setPrivacyLevel(e.target.value as PrivacyLevel)}
-                  />
-                  <label htmlFor={`privacy-${level}`} className="ml-3 block text-sm font-medium text-gray-700">
-                    {level === PrivacyLevel.PUBLIC 
-                      ? '公開' 
-                      : level === PrivacyLevel.FRIENDS_ONLY 
-                        ? 'フレンドのみ' 
-                        : level === PrivacyLevel.PUBLIC_ANONYMOUS
-                          ? 'フレンド以外に匿名で公開'
-                          : '非公開'}
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className={styles.formGroup}>
+                <label className={styles.label}>画像</label>
+                <div className="flex items-center gap-4">
+                  <label htmlFor="image" className="shrink-0 cursor-pointer rounded-md border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50">
+                    ファイルを選択
                   </label>
+                  <input
+                    type="file"
+                    id="image"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={(e) => setImageFile(e.target.files ? e.target.files[0] : null)}
+                  />
+                  <span className="min-w-0 truncate text-sm text-gray-500">
+                    {imageFile ? imageFile.name : (existingImageUrl ? '画像は変更されません' : '選択されていません')}
+                  </span>
                 </div>
-              ))}
+                 {existingImageUrl && !imageFile && (
+                    <p className="mt-2 text-sm text-gray-500">現在の画像: <a href={existingImageUrl} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">表示</a></p>
+                )}
+              </div>
+              <div className={styles.formGroup}>
+                <label htmlFor="category" className={styles.label}>カテゴリ</label>
+                <select
+                  id="category"
+                  value={selectedCategoryId}
+                  onChange={(e) => setSelectedCategoryId(e.target.value)}
+                  className="w-full mt-1 rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50"
+                >
+                  <option value="">選択してください</option>
+                  {categories.map((category) => (
+                    <option key={category.id} value={category.id}>{category.name}</option>
+                  ))}
+                </select>
+              </div>
             </div>
-          </div>
-          <div>
-            <button
-              type="submit"
-              className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
-            >
-              日記を更新
-            </button>
-          </div>
-        </form>
-        <p className="mt-6 text-center text-sm text-gray-600">
-          <Link href="/" className="font-medium text-indigo-600 hover:text-indigo-500">
-            キャンセル
-          </Link>
-        </p>
+
+            <div className={styles.mapContainer}>
+              {latitude && longitude && (
+                <EditEntryMap 
+                  latitude={latitude} 
+                  longitude={longitude} 
+                  setLatitude={setLatitude} 
+                  setLongitude={setLongitude} 
+                />
+              )}
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className={styles.formGroup}>
+                <label htmlFor="takenAt" className={styles.label}>発見日時 (必須)</label>
+                <input
+                  type="datetime-local"
+                  id="takenAt"
+                  value={takenAt}
+                  onChange={(e) => setTakenAt(e.target.value)}
+                  required
+                  className="w-full mt-1 rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50"
+                />
+              </div>
+              <div className={styles.formGroup}>
+                <label className={styles.label}>公開設定</label>
+                <div className="flex flex-wrap gap-x-4 gap-y-2 mt-1">
+                  {Object.values(PrivacyLevel).map((level) => (
+                    <div className="flex items-center" key={level}>
+                      <input id={`privacy-${level}`} name="privacyLevel" type="radio" value={level} checked={privacyLevel === level} onChange={(e) => setPrivacyLevel(e.target.value as PrivacyLevel)} className="h-4 w-4 text-indigo-600 border-gray-300 focus:ring-indigo-500" />
+                      <label htmlFor={`privacy-${level}`} className="ml-2 text-sm">
+                        {level === PrivacyLevel.PUBLIC ? '公開' : level === PrivacyLevel.FRIENDS_ONLY ? 'フレンドのみ' : level === PrivacyLevel.PUBLIC_ANONYMOUS ? '匿名で公開' : '非公開'}
+                      </label>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            <button type="submit" className={styles.submitButton}>日記を更新</button>
+          </form>
+          <p className={styles.cancelLink}>
+            <button type="button" onClick={() => router.back()}>キャンセル</button>
+          </p>
+        </div>
       </div>
     </div>
   );
