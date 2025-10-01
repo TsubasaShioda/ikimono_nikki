@@ -1,33 +1,16 @@
-
 import { NextRequest, NextResponse } from 'next/server';
 import { PrismaClient } from '@prisma/client';
-import { jwtVerify } from 'jose';
+import { verifyToken } from '@/lib/auth';
 
 const prisma = new PrismaClient();
-
-// Helper function to verify JWT and get userId
-async function getUserIdFromToken(request: NextRequest): Promise<string | null> {
-  const token = request.cookies.get('auth_token')?.value;
-  const jwtSecret = process.env.JWT_SECRET;
-
-  if (!token || !jwtSecret) {
-    return null;
-  }
-
-  try {
-    const { payload } = await jwtVerify(token, new TextEncoder().encode(jwtSecret));
-    return payload.userId as string;
-  } catch (error) {
-    console.error('Token verification failed:', error);
-    return null;
-  }
-}
 
 export async function DELETE(req: NextRequest, { params }: { params: { id: string } }) {
   console.log('DELETE /api/hidden-users/[id] received');
   try {
     const { id } = params; // idはhiddenUserのID
-    const userId = await getUserIdFromToken(req);
+    const token = req.cookies.get('token')?.value;
+    const user = await verifyToken(token);
+    const userId = user?.userId;
 
     if (!userId) {
       console.log('DELETE /api/hidden-users/[id]: User not authenticated');

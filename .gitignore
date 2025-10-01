@@ -45,3 +45,5 @@ PROGRESS_LOG.md
 
 # Uploaded files
 /public/uploads
+internal_structure*.md
+*.txt

@@ -1,28 +1,16 @@
-
 import { NextRequest, NextResponse } from 'next/server';
 import { PrismaClient } from '@prisma/client';
-import { jwtVerify } from 'jose'; // joseをインポート
+import { verifyToken } from '@/lib/auth';
 
 const prisma = new PrismaClient();
-
-// Helper function to verify JWT and get userId (from src/app/api/entries/search/route.ts)
-async function getUserIdFromToken(request: NextRequest): Promise<string | null> {
-  const token = request.cookies.get('auth_token')?.value;
-  const jwtSecret = process.env.JWT_SECRET;
-  if (!token || !jwtSecret) return null;
-  try {
-    const { payload } = await jwtVerify(token, new TextEncoder().encode(jwtSecret));
-    return payload.userId as string;
-  } catch (error) {
-    console.error("JWT verification error:", error);
-    return null;
-  }
-}
 
 export async function POST(req: NextRequest) {
   console.log('POST /api/hidden-users received');
   try {
-    const userId = await getUserIdFromToken(req); // getAuth()の代わりにgetUserIdFromTokenを使用
+    const token = req.cookies.get('token')?.value;
+    const user = await verifyToken(token);
+    const userId = user?.userId;
+
     if (!userId) {
       console.log('POST /api/hidden-users: User not authenticated');
       return NextResponse.json({ error: '認証が必要です' }, { status: 401 });
@@ -73,7 +61,9 @@ export async function POST(req: NextRequest) {
 export async function GET(req: NextRequest) {
   console.log('GET /api/hidden-users received');
   try {
-    const userId = await getUserIdFromToken(req);
+    const token = req.cookies.get('token')?.value;
+    const user = await verifyToken(token);
+    const userId = user?.userId;
 
     if (!userId) {
       console.log('GET /api/hidden-users: User not authenticated');
