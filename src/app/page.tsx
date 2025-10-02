@@ -371,25 +371,44 @@ export default function HomePage() {
       <main className="flex-grow relative z-10 bg-gray-100" style={{ height: 'calc(100vh - 88px)' }}>
         {searchLocationResults.length > 0 && (
           <div 
-            className="absolute top-20 left-1/2 -translate-x-1/2 bg-yellow-100 rounded-lg shadow-lg p-6 max-w-sm w-full"
-            style={{ zIndex: 1001 }}
+            className="absolute top-20 left-1/2 -translate-x-1/2 shadow-lg rounded-xl border border-white/20"
+            style={{
+              zIndex: 1001,
+              width: '380px',
+              maxWidth: '90%',
+              backgroundColor: 'rgba(255, 255, 255, 0.8)', // 少し透明度を上げる
+              backdropFilter: 'blur(8px)',
+              WebkitBackdropFilter: 'blur(8px)', // for Safari
+              backgroundImage: `
+                linear-gradient(rgba(200, 200, 200, 0.5) 0.5px, transparent 0.5px),
+                linear-gradient(90deg, rgba(200, 200, 200, 0.5) 0.5px, transparent 0.5px)
+              `,
+              backgroundSize: '15px 15px',
+            }}
           >
-            <ul className="space-y-1">
+            <ul className="p-2">
               {searchLocationResults.map((result) => (
-                <li key={result.place_id}>
+                <li key={result.place_id} className="border-b border-gray-400/60">
                   <button 
                     onClick={() => {
                       handleFlyTo([parseFloat(result.lat), parseFloat(result.lon)]);
                       setSearchLocationResults([]);
                     }}
-                    className="w-full text-left p-2 hover:bg-yellow-200/50 rounded-md text-sm text-gray-800"
+                    className="w-full text-left p-2.5 hover:bg-white/50 rounded-lg text-sm text-gray-800 transition-colors duration-150"
                   >
                     {result.display_name}
                   </button>
                 </li>
               ))}
             </ul>
-            <button onClick={() => setSearchLocationResults([])} className="w-full text-center p-2 mt-2 text-sm text-gray-600 hover:bg-gray-200/50 rounded-md">閉じる</button>
+            <div className="border-t border-white/30 px-2 py-1.5">
+              <button 
+                onClick={() => setSearchLocationResults([])} 
+                className="w-full text-center text-xs text-gray-700 hover:text-black transition-colors"
+              >
+                閉じる
+              </button>
+            </div>
           </div>
         )}
 
