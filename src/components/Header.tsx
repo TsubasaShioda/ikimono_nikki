@@ -18,12 +18,19 @@ interface HeaderProps {
   currentUser: CurrentUser | null;
   onLogout: () => void;
   onOpenSidebar: () => void;
+  onSearch: (query: string) => void; // 地名検索用の関数
 }
 
 // --- アイコンコンポーネント --- //
 const LeafIcon = () => (
   <svg className={styles.logoIcon} viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
     <path d="M17.61 3.42C15.05 2.2 12.03 2.05 9.26 3.01c-2.03.7-3.89 2.18-5.19 4.15-1.37 2.06-2.01 4.58-1.72 7.13.31 2.75 1.63 5.24 3.69 7.02.2.17.48.22.72.1.24-.12.39-.36.39-.62v-2.13c0-.39-.23-.73-.58-.89-1.3-.6-2.29-1.88-2.67-3.35-.39-1.5.02-3.09 1.08-4.32 1.05-1.23 2.65-1.99 4.35-2.11 2.33-.16 4.5.88 5.83 2.71.13.18.34.28.56.28h2.01c.39 0 .72-.29.78-.68.06-.39-.16-.76-.51-.93z" />
+  </svg>
+);
+
+const SearchIcon = () => (
+  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
   </svg>
 );
 
@@ -54,11 +61,19 @@ const InfoIcon = () => (
 
 
 // --- ヘッダーコンポーネント本体 --- //
-export default function Header({ currentUser, onLogout, onOpenSidebar }: HeaderProps) {
+export default function Header({ currentUser, onLogout, onOpenSidebar, onSearch }: HeaderProps) {
   const [isInfoModalOpen, setIsInfoModalOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
 
   const openInfoModal = () => setIsInfoModalOpen(true);
   const closeInfoModal = () => setIsInfoModalOpen(false);
+
+  const handleSearchSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (searchQuery.trim()) {
+      onSearch(searchQuery.trim());
+    }
+  };
 
   // PC表示用のナビゲーションリンク
   const PcNavLinks = () => (
@@ -79,6 +94,22 @@ export default function Header({ currentUser, onLogout, onOpenSidebar }: HeaderP
           <LeafIcon />
           <span className={styles.logoText}>生き物日記</span>
         </Link>
+
+        {/* --- 地名検索フォーム --- */}
+        <div className={styles.searchFormContainer}>
+          <form onSubmit={handleSearchSubmit} className={styles.searchForm}>
+            <input
+              type="text"
+              placeholder="地名で検索..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className={styles.searchInput}
+            />
+            <button type="submit" className={styles.searchButton}>
+              <SearchIcon />
+            </button>
+          </form>
+        </div>
 
         {/* --- 右側のナビゲーションエリア --- */}
         <div className="flex items-center">

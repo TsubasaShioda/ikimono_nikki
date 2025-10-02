@@ -13,7 +13,7 @@ function MapViewUpdater({ center, zoom, flyToCoords }: { center: [number, number
 
   useEffect(() => {
     if (flyToCoords) {
-      map.flyTo(flyToCoords, 10);
+      map.flyTo(flyToCoords, 14);
     } else {
       // Only set view if it's different from the map's current state to avoid conflicts
       const currentCenter = map.getCenter();

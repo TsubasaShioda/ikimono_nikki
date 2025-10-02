@@ -80,8 +80,35 @@ export default function HomePage() {
   });
 
   const [mapBounds, setMapBounds] = useState<{ minLat: number; maxLat: number; minLng: number; maxLng: number } | null>(null);
+  const [searchLocationResults, setSearchLocationResults] = useState<any[]>([]);
 
   const router = useRouter();
+
+  const handleLocationSearch = async (query: string) => {
+    setSearchLoading(true);
+    try {
+      const params = new URLSearchParams({
+        q: query,
+        format: 'json',
+        addressdetails: '1',
+        limit: '5'
+      });
+      const response = await fetch(`https://nominatim.openstreetmap.org/search?${params.toString()}`);
+      if (!response.ok) {
+        throw new Error('Network response was not ok');
+      }
+      const data = await response.json();
+      setSearchLocationResults(data);
+      if (data.length === 0) {
+        setError('場所が見つかりませんでした。');
+      }
+    } catch (error) {
+      console.error('Failed to fetch location', error);
+      setError('場所の検索中にエラーが発生しました。');
+    } finally {
+      setSearchLoading(false);
+    }
+  };
 
   useEffect(() => {
     setIsClient(true);
@@ -333,14 +360,39 @@ export default function HomePage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-100 flex flex-col">
+    <div className="min-h-screen flex flex-col">
       <Header 
         currentUser={currentUser}
         onLogout={handleLogout}
         onOpenSidebar={() => setIsSidebarOpen(true)}
+        onSearch={handleLocationSearch}
       />
 
-      <main className="flex-grow relative z-10" style={{ height: 'calc(100vh - 88px)' }}>
+      <main className="flex-grow relative z-10 bg-gray-100" style={{ height: 'calc(100vh - 88px)' }}>
+        {searchLocationResults.length > 0 && (
+          <div 
+            className="absolute top-20 left-1/2 -translate-x-1/2 bg-yellow-100 rounded-lg shadow-lg p-6 max-w-sm w-full"
+            style={{ zIndex: 1001 }}
+          >
+            <ul className="space-y-1">
+              {searchLocationResults.map((result) => (
+                <li key={result.place_id}>
+                  <button 
+                    onClick={() => {
+                      handleFlyTo([parseFloat(result.lat), parseFloat(result.lon)]);
+                      setSearchLocationResults([]);
+                    }}
+                    className="w-full text-left p-2 hover:bg-yellow-200/50 rounded-md text-sm text-gray-800"
+                  >
+                    {result.display_name}
+                  </button>
+                </li>
+              ))}
+            </ul>
+            <button onClick={() => setSearchLocationResults([])} className="w-full text-center p-2 mt-2 text-sm text-gray-600 hover:bg-gray-200/50 rounded-md">閉じる</button>
+          </div>
+        )}
+
         <MapComponent 
             center={mapView.center}
             zoom={mapView.zoom}
