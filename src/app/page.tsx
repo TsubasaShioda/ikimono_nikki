@@ -158,6 +158,9 @@ export default function HomePage() {
         params.append('minLng', mapBounds.minLng.toString());
         params.append('maxLng', mapBounds.maxLng.toString());
       }
+      if (filters.monthOnly && filters.monthOnly.length > 0) {
+        params.append('monthOnly', filters.monthOnly.join(','));
+      }
       const url = `/api/entries/search?${params.toString()}`;
       const response = await fetch(url);
       const data = await response.json();
